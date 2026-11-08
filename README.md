@@ -8,6 +8,7 @@
 
 - 个人电脑，兼顾日常使用与本地 AI。
 - 首台验证设备为 macOS / Apple Silicon / 8 GiB 内存。
+- 在内存安全预算内允许 AI 充分利用空闲算力；其他应用需要资源时再让出，不因 AI 自身造成的全机 CPU 高占用单独触发限流。
 - 日常调度优先在请求之间调整资源占用；严重内存压力下日常应用优先，允许紧急中断生成并回收受管引擎占用，见 [ADR-0001](docs/adr/0001-prioritize-everyday-apps-under-critical-pressure.md)。
 
 ## 推荐路线
