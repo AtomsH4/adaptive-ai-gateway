@@ -8,6 +8,7 @@ Read `README.md`, `CONTEXT.md`, the current design in `docs/superpowers/specs/`,
 - Develop the first measured path on macOS arm64 with 8 GiB shared memory.
 - Prefer one Go control process and an external native inference engine.
 - Keep model identity, supported context and routing destination explicit.
+- The first real caller is the user's own script or SDK. Validate the HTTP contract and one selected client path; do not make a chat UI or a new standalone SDK a prerequisite for the first release.
 - Keep research and user-facing documentation in Chinese; use English for code identifiers.
 
 ## Resource and lifecycle invariants
