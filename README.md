@@ -13,6 +13,7 @@
 - 首个实机目标为固定小模型的完整流程验证，随后再评估实际目标模型；测试文件的版本与校验记录见[验证模型基线](docs/research/small-model-baseline.json)。
 - 在内存安全预算内允许 AI 充分利用空闲算力；其他应用需要资源时再让出，不因 AI 自身造成的全机 CPU 高占用单独触发限流。
 - 日常调度优先在请求之间调整资源占用；严重内存压力下日常应用优先，允许紧急中断生成并回收受管引擎占用，见 [ADR-0001](docs/adr/0001-prioritize-everyday-apps-under-critical-pressure.md)。
+- 关键内存压力观测失效时暂停新生成，保留在途请求，恢复可靠观测后再放行；可选 GPU 利用率缺失不触发这项限制。
 
 ## 推荐路线
 
@@ -32,6 +33,7 @@
 6. [来源索引与许可证文件指纹](docs/research/sources.json)
 7. [领域术语](CONTEXT.md)与[实施细节审议](docs/plans/2026-11-08-implementation-review.md)
 8. [实施计划草案与任务依赖](docs/plans/2026-11-08-implementation-plan.md)
+9. [首版 HTTP 契约草案](docs/contracts/http-api.md)
 
 ## 首版希望验证的行为
 

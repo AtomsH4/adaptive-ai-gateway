@@ -17,6 +17,7 @@ Read `README.md`, `CONTEXT.md`, the current design in `docs/superpowers/specs/`,
 
 - On unified-memory hardware, never add RAM and GPU memory as independent capacity.
 - Represent unavailable or stale metrics explicitly; never turn them into zero usage.
+- Missing or stale required memory-pressure observations block new generation admission and new model loads, including when a model is already loaded. Preserve in-flight generation under its existing deadline; missing observations alone are not critical-pressure evidence. Optional GPU-utilization gaps do not trigger this guard.
 - Allow healthy inference to use idle compute capacity within memory safety constraints. High total CPU utilization caused by inference itself must not independently trigger throttling; distinguish owned inference load from other workload estimates and expose attribution uncertainty.
 - Account for in-flight requests and concurrent model-load reservations before admission.
 - Propagate client cancellation upstream. Release execution reservations exactly once after engine completion or owned-process exit is confirmed; an HTTP disconnect alone is not proof of released compute.
