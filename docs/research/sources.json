@@ -188,6 +188,39 @@
       "type": "official_webpage",
       "url": "https://developer.apple.com/documentation/dispatch/dispatch_source_memorypressure_flags_t",
       "observation": "Public meanings of normal, warning and critical flags, cross-checked against the installed SDK header values 1, 2 and 4."
+    },
+    {
+      "id": "httpx-client-timeouts",
+      "type": "official_webpage",
+      "url": "https://www.python-httpx.org/advanced/timeouts/",
+      "observation": "Connect, read, write and pool limits are distinct; read timeout limits waiting for a data chunk rather than the whole call."
+    },
+    {
+      "id": "httpx-client-async",
+      "type": "official_webpage",
+      "url": "https://www.python-httpx.org/async/",
+      "observation": "AsyncClient and context-managed streaming support explicit response cleanup."
+    },
+    {
+      "id": "httpx-client-transports",
+      "type": "official_webpage",
+      "url": "https://www.python-httpx.org/advanced/transports/",
+      "observation": "Connection retry configuration belongs to the transport; the proposed client explicitly uses zero retries."
+    },
+    {
+      "id": "httpx-client-package",
+      "type": "official_package_metadata",
+      "url": "https://pypi.org/pypi/httpx/0.28.1/json",
+      "package": "httpx",
+      "version_observed": "0.28.1",
+      "requires_python_observed": ">=3.8",
+      "observation": "Package metadata inspected; not installed. The example separately proposes Python 3.11+ for asyncio.timeout."
+    },
+    {
+      "id": "python-client-total-timeout",
+      "type": "official_webpage",
+      "url": "https://docs.python.org/3.11/library/asyncio-task.html#asyncio.timeout",
+      "observation": "asyncio timeout and cancellation behavior for the proposed outer request deadline."
     }
   ],
   "unresolved_retrievals": [
