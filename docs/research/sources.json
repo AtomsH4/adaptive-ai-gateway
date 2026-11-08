@@ -1,0 +1,162 @@
+{
+  "schema_version": 1,
+  "checked_on": "2026-11-08",
+  "timezone": "Asia/Shanghai",
+  "scope": "Research and design only; no upstream implementation vendored.",
+  "fingerprint_semantics": "git_blob_sha identifies a file's Git content object, not a repository commit or a dependency version. Branch URLs and web pages may change.",
+  "sources": [
+    {
+      "id": "gpustack-gpustack-license",
+      "type": "github_file",
+      "repository": "gpustack/gpustack",
+      "path": "LICENSE",
+      "url": "https://github.com/gpustack/gpustack/blob/main/LICENSE",
+      "git_blob_sha": "f6f399ee56eb3330b053822a8f48429f09daa2da",
+      "license_observed": "Apache-2.0"
+    },
+    {
+      "id": "BerriAI-litellm-license",
+      "type": "github_file",
+      "repository": "BerriAI/litellm",
+      "path": "LICENSE",
+      "url": "https://github.com/BerriAI/litellm/blob/main/LICENSE",
+      "git_blob_sha": "3bfef5bae9b48c334acf426d5b7f21bc1913aab9",
+      "license_observed": "MIT outside explicitly excluded scope"
+    },
+    {
+      "id": "mudler-LocalAI-license",
+      "type": "github_file",
+      "repository": "mudler/LocalAI",
+      "path": "LICENSE",
+      "url": "https://github.com/mudler/LocalAI/blob/master/LICENSE",
+      "git_blob_sha": "65ebf26018f7d8eefefe1741b81009daed03ff93",
+      "license_observed": "MIT"
+    },
+    {
+      "id": "ggml-org-llama-cpp-license",
+      "type": "github_file",
+      "repository": "ggml-org/llama.cpp",
+      "path": "LICENSE",
+      "url": "https://github.com/ggml-org/llama.cpp/blob/master/LICENSE",
+      "git_blob_sha": "e7dca554bcb802f98408383a864404e3aa4eacca",
+      "license_observed": "MIT"
+    },
+    {
+      "id": "kvcache-ai-ktransformers-license",
+      "type": "github_file",
+      "repository": "kvcache-ai/ktransformers",
+      "path": "LICENSE",
+      "url": "https://github.com/kvcache-ai/ktransformers/blob/main/LICENSE",
+      "git_blob_sha": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+      "license_observed": "Apache-2.0"
+    },
+    {
+      "id": "gpustack-architecture",
+      "type": "github_file",
+      "repository": "gpustack/gpustack",
+      "path": "docs/architecture.md",
+      "url": "https://github.com/gpustack/gpustack/blob/main/docs/architecture.md",
+      "git_blob_sha": "9eb9d9829ff84bd9e275f9fb04d599a9a915100f"
+    },
+    {
+      "id": "gpustack-scheduler",
+      "type": "github_file",
+      "repository": "gpustack/gpustack",
+      "path": "docs/scheduler.md",
+      "url": "https://github.com/gpustack/gpustack/blob/main/docs/scheduler.md",
+      "git_blob_sha": "6e40faf3b56481ddf011b06d6ff1c7ccc870f2c0"
+    },
+    {
+      "id": "llama-fit-params",
+      "type": "github_file",
+      "repository": "ggml-org/llama.cpp",
+      "path": "tools/fit-params/README.md",
+      "url": "https://github.com/ggml-org/llama.cpp/blob/master/tools/fit-params/README.md",
+      "git_blob_sha": "0ec510e298f0f72c12a8947c7a9a832628200a95"
+    },
+    {
+      "id": "ktransformers-overview",
+      "type": "github_file",
+      "repository": "kvcache-ai/ktransformers",
+      "path": "README.md",
+      "url": "https://github.com/kvcache-ai/ktransformers/blob/main/README.md",
+      "git_blob_sha": "45e82a955b021163cd2e7743b0cc02e7de5d22b0",
+      "excerpt_start_line": 1,
+      "excerpt_end_line": 75
+    },
+    {
+      "id": "llama-metal-build",
+      "type": "github_file",
+      "repository": "ggml-org/llama.cpp",
+      "path": "docs/build.md",
+      "url": "https://github.com/ggml-org/llama.cpp/blob/master/docs/build.md",
+      "git_blob_sha": "4e3bfe651b391fa5a7ffa4e63922ed43b99c8d93",
+      "excerpt_start_line": 140,
+      "excerpt_end_line": 230
+    },
+    {
+      "id": "litellm-pricing",
+      "url": "https://www.litellm.ai/pricing",
+      "observation": "Self-hosted OSS listed as US$0. Enterprise is quoted annually by gateway request capacity, architecture and support needs; no fixed enterprise amount recorded.",
+      "type": "official_webpage"
+    },
+    {
+      "id": "gpustack-enterprise",
+      "url": "https://gpustack.ai/enterprise/",
+      "observation": "Enterprise features and contact-sales flow. No fixed numeric enterprise price found on this checked page.",
+      "type": "official_webpage"
+    },
+    {
+      "id": "gpustack-worker-requirements",
+      "url": "https://github.com/gpustack/gpustack#prerequisites",
+      "observation": "Current README states Linux-only worker support, Windows via WSL2, and no macOS workers.",
+      "type": "official_webpage"
+    },
+    {
+      "id": "localai-overview",
+      "url": "https://localai.io/",
+      "observation": "MIT runtime, interchangeable model backends and business-contact link. No fixed subscription price recorded.",
+      "type": "official_webpage"
+    },
+    {
+      "id": "localai-scheduling",
+      "url": "https://localai.io/docs/features/distributed-mode/#scheduling-algorithm",
+      "observation": "Documented loaded-model reuse, VRAM-aware node selection, idle/least-loaded preference and idle-model eviction.",
+      "type": "official_webpage"
+    },
+    {
+      "id": "apple-unified-memory",
+      "url": "https://developer.apple.com/videos/play/tech-talks/10580/",
+      "observation": "Apple explanation of unified memory and Metal working-set guidance.",
+      "type": "official_webpage"
+    },
+    {
+      "id": "apple-metal-working-set",
+      "url": "https://developer.apple.com/documentation/metal/mtldevice/recommendedmaxworkingsetsize",
+      "observation": "Recommended GPU working set is performance guidance. hasUnifiedMemory describes shared CPU/GPU memory.",
+      "type": "official_webpage"
+    }
+  ],
+  "unresolved_retrievals": [
+    {
+      "url": "https://github.com/BerriAI/litellm/blob/main/enterprise/LICENSE",
+      "result": "GitHub Contents API returned 404 on the check date; root LICENSE conditionally excludes enterprise/ if it exists. Do not infer commercial code reuse rights from this result."
+    },
+    {
+      "url": "https://gpustack.ai/pricing",
+      "result": "Not accessible through the browsing tool. Enterprise claims and price availability were instead checked at the official enterprise page."
+    }
+  ],
+  "local_observations": {
+    "document": "../local-machine.md",
+    "commands": [
+      "system_profiler SPHardwareDataType SPDisplaysDataType -json",
+      "sysctl -n hw.memsize",
+      "go version",
+      "python3 --version",
+      "command path checks"
+    ],
+    "retained_unique_machine_identifiers": false,
+    "real_inference_benchmark_performed": false
+  }
+}
