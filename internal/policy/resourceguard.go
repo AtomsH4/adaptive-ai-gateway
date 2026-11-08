@@ -4,7 +4,7 @@ package policy
 import (
 	"time"
 
-	"adaptive-ai-gateway/internal/domain"
+	"github.com/AtomsH4/adaptive-ai-gateway/internal/domain"
 )
 
 // ResourceGuard classifies memory observations. Timed hysteresis, admission,

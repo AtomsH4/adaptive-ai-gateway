@@ -1,20 +1,168 @@
 {
   "schema_version": 1,
-  "module": "adaptive-ai-gateway",
+  "module": "github.com/AtomsH4/adaptive-ai-gateway",
   "rules": [
-    {"package": "internal/domain", "internal": [], "stdlib": ["time"], "external": []},
-    {"package": "internal/application/api", "internal": ["internal/domain"], "stdlib": ["context", "time"], "external": []},
-    {"package": "internal/application/ports", "internal": ["internal/domain"], "stdlib": ["context", "time"], "external": []},
-    {"package": "internal/application", "internal": ["internal/domain", "internal/application/api", "internal/application/ports"], "stdlib": ["context", "errors", "fmt", "sync", "time"], "external": []},
-    {"package": "internal/policy", "internal": ["internal/domain"], "stdlib": ["time"], "external": []},
-    {"package": "internal/adapter/fake", "internal": ["internal/domain", "internal/application/ports"], "stdlib": ["context", "errors", "sync", "time"], "external": []},
-    {"package": "internal/adapter/http", "internal": ["internal/domain", "internal/application/api"], "stdlib": ["*"], "external": []},
-    {"package": "internal/adapter/llamacpp", "internal": ["internal/domain", "internal/application/ports"], "stdlib": ["*"], "external": []},
-    {"package": "internal/adapter/platform", "internal": ["internal/domain", "internal/application/ports"], "stdlib": ["*"], "external": []},
-    {"package": "internal/adapter/config", "internal": ["internal/domain", "internal/application/ports"], "stdlib": ["*"], "external": []},
-    {"package": "internal/adapter/observability", "internal": ["internal/domain", "internal/application/ports"], "stdlib": ["*"], "external": []},
-    {"package": "internal/architecture", "internal": [], "stdlib": ["*"], "external": []},
-    {"package": "cmd/archcheck", "internal": ["internal/architecture"], "stdlib": ["*"], "external": []},
-    {"package": "cmd/gateway", "internal": ["internal/domain", "internal/application", "internal/policy", "internal/adapter"], "stdlib": ["*"], "external": []}
+    {
+      "package": "internal/domain",
+      "internal": [],
+      "stdlib": [
+        "time"
+      ],
+      "external": []
+    },
+    {
+      "package": "internal/application/api",
+      "internal": [
+        "internal/domain"
+      ],
+      "stdlib": [
+        "context",
+        "time"
+      ],
+      "external": []
+    },
+    {
+      "package": "internal/application/ports",
+      "internal": [
+        "internal/domain"
+      ],
+      "stdlib": [
+        "context",
+        "time"
+      ],
+      "external": []
+    },
+    {
+      "package": "internal/application",
+      "internal": [
+        "internal/domain",
+        "internal/application/api",
+        "internal/application/ports"
+      ],
+      "stdlib": [
+        "context",
+        "errors",
+        "fmt",
+        "sync",
+        "time",
+        "io"
+      ],
+      "external": []
+    },
+    {
+      "package": "internal/policy",
+      "internal": [
+        "internal/domain"
+      ],
+      "stdlib": [
+        "time"
+      ],
+      "external": []
+    },
+    {
+      "package": "internal/adapter/fake",
+      "internal": [
+        "internal/domain",
+        "internal/application/ports"
+      ],
+      "stdlib": [
+        "context",
+        "errors",
+        "sync",
+        "time",
+        "io"
+      ],
+      "external": []
+    },
+    {
+      "package": "internal/adapter/http",
+      "internal": [
+        "internal/domain",
+        "internal/application/api"
+      ],
+      "stdlib": [
+        "*"
+      ],
+      "external": []
+    },
+    {
+      "package": "internal/adapter/llamacpp",
+      "internal": [
+        "internal/domain",
+        "internal/application/ports"
+      ],
+      "stdlib": [
+        "*"
+      ],
+      "external": []
+    },
+    {
+      "package": "internal/adapter/platform",
+      "internal": [
+        "internal/domain",
+        "internal/application/ports"
+      ],
+      "stdlib": [
+        "*"
+      ],
+      "external": [
+        "C"
+      ]
+    },
+    {
+      "package": "internal/adapter/config",
+      "internal": [
+        "internal/domain",
+        "internal/application/ports"
+      ],
+      "stdlib": [
+        "*"
+      ],
+      "external": [
+        "github.com/pelletier/go-toml/v2"
+      ]
+    },
+    {
+      "package": "internal/adapter/observability",
+      "internal": [
+        "internal/domain",
+        "internal/application/ports"
+      ],
+      "stdlib": [
+        "*"
+      ],
+      "external": []
+    },
+    {
+      "package": "internal/architecture",
+      "internal": [],
+      "stdlib": [
+        "*"
+      ],
+      "external": []
+    },
+    {
+      "package": "cmd/archcheck",
+      "internal": [
+        "internal/architecture"
+      ],
+      "stdlib": [
+        "*"
+      ],
+      "external": []
+    },
+    {
+      "package": "cmd/gateway",
+      "internal": [
+        "internal/domain",
+        "internal/application",
+        "internal/policy",
+        "internal/adapter"
+      ],
+      "stdlib": [
+        "*"
+      ],
+      "external": []
+    }
   ]
 }

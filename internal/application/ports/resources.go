@@ -5,7 +5,7 @@ import (
 	"context"
 	"time"
 
-	"adaptive-ai-gateway/internal/domain"
+	"github.com/AtomsH4/adaptive-ai-gateway/internal/domain"
 )
 
 // Sample returns per-field unavailable observations for partial failure.

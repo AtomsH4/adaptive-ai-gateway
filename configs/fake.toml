@@ -1,0 +1,13 @@
+# 假引擎开发模式：不运行模型，资源来源明确标为 synthetic。
+[server]
+listen = "127.0.0.1:8787"
+token_env = "AIGATEWAY_TOKEN"
+
+[backend]
+mode = "fake"
+
+[model]
+id = "validation-model"
+
+[scheduler]
+idle_timeout = "30s"

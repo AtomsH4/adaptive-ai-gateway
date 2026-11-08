@@ -249,6 +249,30 @@
         "observed_at": null,
         "source": "test"
       }
+    },
+    {
+      "name": "unknown CPU attribution is null",
+      "schema": "CPUObservation",
+      "valid": true,
+      "payload": {
+        "quality": "available",
+        "total_percent": 99,
+        "owned_percent": null,
+        "other_percent": null,
+        "attribution_reliable": false
+      }
+    },
+    {
+      "name": "unknown CPU cannot claim other workload idle",
+      "schema": "CPUObservation",
+      "valid": false,
+      "payload": {
+        "quality": "available",
+        "total_percent": 99,
+        "owned_percent": 0,
+        "other_percent": 0,
+        "attribution_reliable": false
+      }
     }
   ],
   "stream_cases": [

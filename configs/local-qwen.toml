@@ -1,0 +1,24 @@
+# 先运行 Python 3.12 的 scripts/fetch_baseline.py；路径相对于本配置文件。
+[server]
+listen = "127.0.0.1:8787"
+token_env = "AIGATEWAY_TOKEN"
+
+[model]
+id = "Qwen2.5-0.5B-Instruct-Q4_K_M"
+revision = "9217f5db79a29953eb74d5343926648285ec7e67"
+sha256 = "74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db"
+path = "../.local/validation-model.gguf"
+context_tokens = 2048
+required_free_mib = 2048
+
+[backend]
+mode = "llamacpp"
+executable = "../.local/engine/llama-b12110/llama-server"
+port = 8788
+threads = 2
+gpu_layers = 99
+profile_id = "qwen-small-metal"
+profile_revision = "1"
+
+[scheduler]
+idle_timeout = "30s"

@@ -5,7 +5,7 @@ package api
 import (
 	"context"
 
-	"adaptive-ai-gateway/internal/domain"
+	"github.com/AtomsH4/adaptive-ai-gateway/internal/domain"
 )
 
 // ResourceAssessmentQuery reads a cached snapshot and classifies its signals.

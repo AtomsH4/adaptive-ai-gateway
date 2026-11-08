@@ -41,6 +41,8 @@ Service readiness is separate from instantaneous generation capacity (ADR-0004).
 
 Run `make setup-tools` once, then `make check` for relevant source or contract changes. These checks cover dependency boundaries, Go tests/race/vet and OpenAPI fixtures. Lock new tool dependencies with hashes; keep them outside the Go runtime dependency graph. CI configuration is not evidence that remote CI has run.
 
+Use `make setup-client check-client` for the Python path. Current runtime evidence is in `docs/reports/2026-11-09-runtime-validation.md`: fake-service and child-process fixtures passed, while actual model generation remains blocked by host memory safety conditions. Never override real telemetry or lower memory gates simply to obtain a successful demonstration. The CPU bridge's `C` import is allowed only for the platform adapter.
+
 When implementation begins, prioritize meaningful checks for admission races, cancellation, missing metrics, draining, queue expiry and streaming. Simulated scheduler tests and real model inference measurements must be reported separately.
 
 Do not commit keys, model weights, machine serial numbers, platform UUIDs, raw prompts or responses. Keep model caches and local runtime state outside tracked source.

@@ -308,6 +308,58 @@
       "commit_sha": "6d4fd22b20465ccc0f7354476588e8df7c9ca0e0",
       "url": "https://github.com/actions/setup-python/tree/6d4fd22b20465ccc0f7354476588e8df7c9ca0e0",
       "observation": "Release tag target verified through the public GitHub API; local CI configuration selects Python 3.12.13 for contract tooling."
+    },
+    {
+      "id": "go-toml-v2-license",
+      "type": "github_file",
+      "url": "https://github.com/pelletier/go-toml/blob/v2.4.3/LICENSE",
+      "version_observed": "v2.4.3",
+      "license_observed": "MIT",
+      "observation": "Only the config adapter imports this direct Go dependency; go.sum pins module checksums.",
+      "checked_on": "2026-11-09"
+    },
+    {
+      "id": "llama-b12110-arm64-artifact",
+      "type": "official_release_metadata",
+      "url": "https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/b12110",
+      "artifact": "llama-b12110-bin-macos-arm64.tar.gz",
+      "sha256": "4f5b8de12e0b9516658ca6a5764c6ffb3d7c659c3dd538556b1413c7b4050662",
+      "observation": "Official API digest matched the downloaded archive. --version reported build 12110 and cd959bae9. No model inference was performed.",
+      "checked_on": "2026-11-09"
+    },
+    {
+      "id": "llama-v0-9-nightly-mapping",
+      "type": "official_release_metadata",
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/v0.9.0/nightly-tag.txt",
+      "observation": "Downloaded file names b12110 as the binary release corresponding to the chosen documentation release.",
+      "checked_on": "2026-11-09"
+    },
+    {
+      "id": "apple-cpu-measurement-sdk",
+      "type": "installed_sdk_headers",
+      "paths": [
+        "mach/host_info.h",
+        "mach/machine.h",
+        "libproc.h",
+        "sys/resource.h"
+      ],
+      "observation": "macOS SDK exposes HOST_CPU_LOAD_INFO and proc_pid_rusage/RUSAGE_INFO_V2. Measurement uses process-start identity, window deltas and all-core normalization; no process-control authority is exposed to policy.",
+      "checked_on": "2026-11-09"
+    },
+    {
+      "id": "project-apache-license",
+      "type": "official_license_template",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+      "observation": "Adopted as the project license for public publication; third-party engine and weights retain their separate terms.",
+      "checked_on": "2026-11-09"
+    },
+    {
+      "id": "apple-xnu-cpu-mach-time",
+      "type": "github_file",
+      "checked_on": "2026-11-09",
+      "url": "https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/kern/bsd_kern.c",
+      "related_url": "https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/kern/task.c",
+      "observation": "fill_task_rusage uses task_power_info totals backed by recount Mach time. Convert using mach_timebase_info before nanosecond normalization; verified locally against getrusage in the darwin/cgo regression test."
     }
   ],
   "unresolved_retrievals": [

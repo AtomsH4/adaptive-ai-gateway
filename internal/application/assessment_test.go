@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"adaptive-ai-gateway/internal/adapter/fake"
-	"adaptive-ai-gateway/internal/application"
-	"adaptive-ai-gateway/internal/application/api"
-	"adaptive-ai-gateway/internal/application/ports"
-	"adaptive-ai-gateway/internal/domain"
-	"adaptive-ai-gateway/internal/policy"
+	"github.com/AtomsH4/adaptive-ai-gateway/internal/adapter/fake"
+	"github.com/AtomsH4/adaptive-ai-gateway/internal/application"
+	"github.com/AtomsH4/adaptive-ai-gateway/internal/application/api"
+	"github.com/AtomsH4/adaptive-ai-gateway/internal/application/ports"
+	"github.com/AtomsH4/adaptive-ai-gateway/internal/domain"
+	"github.com/AtomsH4/adaptive-ai-gateway/internal/policy"
 )
 
 type independentReader struct{ snapshot domain.ResourceSnapshot }

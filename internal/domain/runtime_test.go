@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"adaptive-ai-gateway/internal/domain"
+	"github.com/AtomsH4/adaptive-ai-gateway/internal/domain"
 )
 
 func TestResourceReleaseRequiresEvidenceForTheCurrentIncarnation(t *testing.T) {

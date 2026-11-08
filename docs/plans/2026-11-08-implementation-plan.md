@@ -17,9 +17,9 @@
 
 ## 2. 技术依据与首轮验证基线
 
-验证模型候选为官方 [Qwen2.5-0.5B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF) 的 Q4_K_M 文件。已读取固定修订的许可证及文件元数据，版本、长度和预期 SHA-256 见 [基线记录](../research/small-model-baseline.json)。文件大小不代表进程或统一内存峰值；尚未下载权重或跑过推理。
+验证模型为官方 [Qwen2.5-0.5B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF) 的 Q4_K_M 文件，现已下载并核验固定摘要。文件大小不代表进程或统一内存峰值；真实生成被当前本机资源门槛阻止，见 [基线记录](../research/small-model-baseline.json) 和 [运行报告](../reports/2026-11-09-runtime-validation.md)。
 
-引擎候选采用 llama.cpp [v0.9.0 服务文档](https://github.com/ggml-org/llama.cpp/blob/v0.9.0/tools/server/README.md)。安装产物与本机运行能力仍需验证，正式执行时固定来源、校验值与实际版本，不能用滚动的 latest 代替复现实验记录。
+引擎采用 llama.cpp [v0.9.0 服务文档](https://github.com/ggml-org/llama.cpp/blob/v0.9.0/tools/server/README.md) 对应的官方 b12110 arm64 产物，摘要与实际版本已验证。模型生成、取消、卸载与峰值仍待实机资源条件满足。
 
 首轮探测提案为上下文 2048、单模型、单生成、每次最多输出 128 tokens；公开接口的拟议上限仍为 512。使用短输入检查有效响应、流式分片、取消和清理，不以模型答案质量作为资源控制通过的条件。
 
@@ -27,21 +27,21 @@
 
 | 位置 | 职责 | 当前状态 |
 | --- | --- | --- |
-| `cmd/gateway/` | 配置启动、依赖装配与进程退出，唯一连接具体适配器的入口 | 待 T1 |
+| `cmd/gateway/` | 配置启动、依赖装配与进程退出，唯一连接具体适配器的入口 | 已实现并启动验证 |
 | `internal/domain/` | 平台无关的观测、模型/实例/执行身份、输出事件与释放证据 | 已有基础值与证据范围检查 |
-| `internal/application/api/` | 入站用例契约，供 HTTP 等入口调用 | 已有只读查询契约，生成命令待 T2/T5 |
-| `internal/application/ports/` | 出站消费方小接口；读取/采集、规则、生命周期与生成分开 | 已有 Go 契约，真实引擎实现待 T3 |
-| `internal/application/` | 用例、唯一协调器、队列、账本与时限 | 已有只读 AssessmentService，协调器待 T2 |
-| `internal/policy/` | 输入显式时间的纯资源规则 | 已有内存信号分类，恢复窗口由 T2 实现 |
-| `internal/adapter/config/` | TOML、密钥来源与配置转换 | 待 T1 |
-| `internal/adapter/llamacpp/` | 引擎协议与受管进程、退出证据 | 待 T3/T6 |
-| `internal/adapter/platform/` | 周期采集与发布快照 | 待 T4 |
-| `internal/adapter/http/` | 鉴权、DTO、错误与 SSE，不直接访问引擎 | 待 T5 |
-| `internal/adapter/observability/` | 有界观测与指标输出 | 待 T1/T5 |
+| `internal/application/api/` | 入站用例契约，供 HTTP 等入口调用 | 查询、生成与状态契约已实现 |
+| `internal/application/ports/` | 出站消费方小接口；读取/采集、规则、生命周期与生成分开 | 原生实现与子进程夹具已有，真实模型验收待 T6 |
+| `internal/application/` | 用例、唯一协调器、队列、账本与时限 | 协调器、账本、预算与恢复状态已实现 |
+| `internal/policy/` | 输入显式时间的纯资源规则 | 内存及外部 CPU 规则已有，恢复窗口由协调器执行 |
+| `internal/adapter/config/` | TOML、密钥来源与配置转换 | 已实现 |
+| `internal/adapter/llamacpp/` | 引擎协议与受管进程、退出证据 | 夹具通过；模型测量待 T6 |
+| `internal/adapter/platform/` | 周期采集与发布快照 | macOS 压力、保守余量和同窗口 CPU 已实现 |
+| `internal/adapter/http/` | 鉴权、DTO、错误与 SSE，不直接访问引擎 | 已通过假引擎 HTTP 验证 |
+| `internal/adapter/observability/` | 元数据日志；完整指标输出留待后续阶段 | 已有元数据日志 |
 | `internal/adapter/fake/` | 固定快照与时钟；后续扩充受控假引擎 | 已有资源读取测试适配器 |
 | `internal/architecture/`、`cmd/archcheck/` | 依赖边界检查及反例测试 | 已实现并通过 |
 | `api/` | 机器可读协议与合成 fixture | 已有 OpenAPI 3.1.1 与校验 |
-| `examples/python/` | 实际 Python 异步调用示例 | 待 T7 |
+| `examples/python/` | 实际 Python 异步调用示例 | 示例及假引擎通过；实机验收待 T6 |
 
 引擎生命周期、资源保护状态与单个请求状态分别存储，不用一个枚举同时承担三个含义。设计草案里的 ready、constrained、reclaiming 等是对外摘要；观测接口同时提供原始状态和原因，避免将引擎加载与内存受限互相覆盖。
 
@@ -67,12 +67,12 @@ T2/T3/T4 有明确接口后可以独立开发；这里的依赖关系不表示�
 
 ### 首轮可控原型的工作包
 
-1. T0 已形成版本化 HTTP/OpenAPI、Go 端口与依赖门槛。当前本地模块路径为 `adaptive-ai-gateway`，正式发布前再按实际仓库地址统一。
+1. T0 已形成版本化 HTTP/OpenAPI、Go 端口与依赖门槛。模块路径为 `github.com/AtomsH4/adaptive-ai-gateway`，对应已授权的公开仓库目标。
 2. T1 接着创建 `cmd/gateway/`，在 `adapter/config/` 解析并校验 TOML，在 `adapter/observability/` 处理日志；组合入口注入对象，不在业务包中读取环境变量或调用进程。配置依赖在引入时锁定，假引擎模式不需要模型或云端密钥。
 3. T2/T3 先通过假引擎覆盖单执行槽位、四个等待名额、一次共享加载、累计时限、取消确认和迟到事件；不以真实模型速度决定这些测试能否通过。
 4. T4 先做只读平台采集与 fixture 策略测试，再由 T5 接入 HTTP。观测恢复、加载等待和总时限的组合必须验证没有重复计时或重置预算。
 
-每个包完成后运行其有意义的行为检查及 `make check`，保留结果。当前检查通过证明已有基础和契约，不替代 T2–T5 的实际调度与 HTTP 测试；这些完成之后才进入 T6。
+每个包完成后运行行为检查、`make check` 与相应客户端检查。当前已有调度、假引擎 HTTP 和真实子进程夹具的证据，不能替代 T6 的真实模型验收。
 
 ### 完成与回退规则
 
@@ -109,7 +109,7 @@ T2/T3/T4 有明确接口后可以独立开发；这里的依赖关系不表示�
 
 ## 7. Python 调用方实施提案
 
-用户已确认 Python 作为首个示例语言。以下为开发侧的实现提案，尚未安装依赖或编写示例：
+Python 示例已在 `examples/python/` 实现；解释器为 3.12.13，HTTPX 为 0.28.1，完整依赖与哈希已锁定。以下为其契约与剩余验收范围：
 
 - 使用独立的 Python 3.11+ 环境，实施时锁定具体解释器版本；本机系统 Python 3.9.6 不作为这份异步示例的运行基线。
 - 候选依赖为 PyPI 当前列出的 [HTTPX 0.28.1](https://pypi.org/project/httpx/0.28.1/)。使用 [AsyncClient 与流式上下文](https://www.python-httpx.org/async/) 关闭响应连接，不开发独立 SDK，也不把脚本通过解释为所有第三方 SDK 通过。
@@ -123,7 +123,7 @@ T2/T3/T4 有明确接口后可以独立开发；这里的依赖关系不表示�
 
 ## 8. 检查与实测的界限
 
-当前已运行并通过 `make check`，包括已有生产包的依赖检查、Go 测试/race/vet、OpenAPI 和 fixture。它验证基础边界、信号与证据引用，以及契约语法和合成场景。后续仍须执行超发、退出竞态、共享加载、时限累计和紧急回收等真正的协调器/后端行为测试。
+已运行 `make check` 与客户端检查，并对实际假引擎 HTTP 和真实子进程夹具验证控制路径。真实模型取消、卸载、峰值及日常应用影响仍待 T6–T8，证据分别报告。
 
 关键压力路径通过可控时钟、假引擎和测试用 telemetry fixture 覆盖。故障注入只存在于测试路径；不为验证紧急回收而故意制造本机真实内存耗尽，也不暴露可伪造系统压力的默认管理接口。
 
@@ -131,6 +131,6 @@ T2/T3/T4 有明确接口后可以独立开发；这里的依赖关系不表示�
 
 ## 9. 当前状态与实施入口
 
-用户已明确按推荐方案推进，并要求低耦合、扩展性与生产演进。T0 的架构、契约和基础验证已落地；下一工作包为 T1 的组合入口与适配器，再按 T2–T5 建立可控原型，T6/T7 验证真实小模型与 Python 调用，最后进行 T8 对照测量。
+T0–T5 已有实现与当前路径的验证，T7 在假引擎上通过。T6 的真实加载被当前本机 warning/余量门槛阻止；下一步是资源条件满足后的模型闭环、T7 实机验收及 T8 应用对照。
 
 平台采集兼容性、引擎取消完成证据、模型内存峰值与日常应用的改善幅度仍需通过上述任务获得证据。若某项验证失败，修正相应工程实现或实验参数并记录原因；不把测试未通过包装成产品取舍已经实现，也不自动扩大到多机、工具调用或云端回退。

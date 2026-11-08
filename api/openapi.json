@@ -938,6 +938,16 @@
           },
           "memory_pressure": {
             "$ref": "#/components/schemas/MemoryObservation"
+          },
+          "available_memory_bytes_estimate": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "cpu": {
+            "$ref": "#/components/schemas/CPUObservation"
           }
         },
         "required": [
@@ -978,6 +988,28 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "recent_decisions": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "type": "object",
+              "properties": {
+                "at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "code": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "at",
+                "code"
+              ],
+              "additionalProperties": true
             }
           }
         },
@@ -1039,6 +1071,73 @@
               "properties": {
                 "can_execute_now": {
                   "const": false
+                }
+              }
+            }
+          }
+        ]
+      },
+      "CPUObservation": {
+        "type": "object",
+        "properties": {
+          "quality": {
+            "enum": [
+              "available",
+              "unavailable"
+            ]
+          },
+          "total_percent": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100
+          },
+          "owned_percent": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100
+          },
+          "other_percent": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100
+          },
+          "attribution_reliable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "quality",
+          "total_percent",
+          "owned_percent",
+          "other_percent",
+          "attribution_reliable"
+        ],
+        "additionalProperties": true,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "attribution_reliable": {
+                  "const": false
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "owned_percent": {
+                  "type": "null"
+                },
+                "other_percent": {
+                  "type": "null"
                 }
               }
             }

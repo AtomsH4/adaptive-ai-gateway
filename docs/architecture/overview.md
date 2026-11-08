@@ -4,7 +4,7 @@
 
 ## 1. 本轮交付边界
 
-本轮目标是形成低耦合、可扩展且有生产演进路径的架构与实施计划，并用最小 Go 基础代码验证依赖方向、资源信号分类和完成证据的范围。当前没有运行中的 HTTP 推理服务、真实引擎适配器或模型实测；后续工作包与完成门槛见 [实施计划](../plans/2026-11-08-implementation-plan.md)。
+架构基础之后已实现单所有者协调器、HTTP、平台和原生引擎适配器，并验证假引擎闭环与子进程夹具。真实模型的生成实测仍因资源门槛未完成；当前证据见 [运行记录](../reports/2026-11-09-runtime-validation.md)，后续门槛见 [实施计划](../plans/2026-11-08-implementation-plan.md)。
 
 选择一个 Go 控制进程，以独立原生推理进程作为可替换后端。先保持本机部署、单模型和单执行槽位；未来在接口稳定且有实际需求后拆分远程 Worker。替代方案与取舍见 [ADR-0002](../adr/0002-modular-monolith-and-ports.md)。
 
@@ -44,7 +44,7 @@ flowchart TB
 
 `internal/core` 不再作为共享杂物包；领域值、消费方接口和协议 DTO 分开。适配器之间没有编译依赖，新平台或新引擎不能通过改 HTTP handler 接入。
 
-入站 `api` 与出站 `ports` 使用两个包。HTTP 的依赖白名单只允许领域值和入站用例契约，不能导入应用实现、引擎端口或其他适配器；当前 `ResourceAssessmentQuery` 已由参考用例实现。后续生成命令与调度诊断同样先定义入站用例，不通过向 handler 暴露后端接口接入。
+入站 `api` 与出站 `ports` 使用两个包。HTTP 的依赖白名单只允许领域值和入站用例契约，不能导入应用实现、引擎端口或其他适配器；生成和调度诊断由 `api.Gateway` 提供，资源查询由 `ResourceAssessmentQuery` 提供。
 
 ## 3. 控制流与数据流分开
 
@@ -58,7 +58,7 @@ flowchart TB
 
 `ResourceSampler.Sample` 是周期采集端口；`ResourceReader.Read` 是读取已发布快照的端口。HTTP 查询不启动新的系统探测，也不根据查询次数改变采样节奏。`AssessmentService` 是已实现的只读参考用例：读取快照、用显式时钟判断新鲜度、产生资源信号。
 
-这个参考用例不是准入服务。`ResourceGuard` 已实现 normal、warning、critical 与 observation_guard 的分类；连续采样、恢复窗口、排队、容量授予和紧急回收执行由后续协调器完成。CPU 与可选 GPU 信息缺失不会被该内存分类器误当作 critical。
+这个参考用例不是准入服务。`ResourceGuard` 分类内存信号，`LoadPolicy` 增加可信外部 CPU 争用；恢复窗口、排队、容量授予和紧急回收由协调器执行。CPU 与可选 GPU 信息缺失不会被内存分类器误当作 critical。macOS 的 CPU 采集在平台层单独获准使用 `C`，调用本机 SDK 的 Mach/libproc；TOML 依赖只在配置适配器获准使用。
 
 ## 5. 扩展方式
 

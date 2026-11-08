@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"adaptive-ai-gateway/internal/architecture"
+	"github.com/AtomsH4/adaptive-ai-gateway/internal/architecture"
 )
 
 func main() {

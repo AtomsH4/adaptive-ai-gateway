@@ -1,7 +1,7 @@
 {
   "checked_on": "2026-11-08",
   "timezone": "Asia/Shanghai",
-  "status": "development_validation_candidate_not_benchmarked",
+  "status": "artifacts_verified_generation_blocked_by_memory_guard",
   "purpose": "Validate loading, admission, generation, cancellation and reclamation before evaluating target-model quality.",
   "model": {
     "repository": "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
@@ -22,7 +22,12 @@
     "release_url": "https://github.com/ggml-org/llama.cpp/releases/tag/v0.9.0",
     "server_documentation_url": "https://github.com/ggml-org/llama.cpp/blob/v0.9.0/tools/server/README.md",
     "server_documentation_git_blob_sha": "afa448b8a736b41ff1adf706ea9d90c22683ed63",
-    "installation_artifact_verified": false
+    "installation_artifact_verified": true,
+    "binary_release_tag": "b12110",
+    "binary_archive": "llama-b12110-bin-macos-arm64.tar.gz",
+    "binary_archive_size_bytes": 16650691,
+    "binary_archive_sha256": "4f5b8de12e0b9516658ca6a5764c6ffb3d7c659c3dd538556b1413c7b4050662",
+    "version_reported": "0.9.0-dev (build 12110, commit cd959bae9)"
   },
   "proposed_initial_probe": {
     "context_tokens": 2048,
@@ -31,11 +36,16 @@
     "note": "Probe output is shorter than the proposed public API cap of 512. These values are not a successful-run record."
   },
   "local_verification": {
-    "weights_downloaded": false,
-    "downloaded_weight_checksum_verified": false,
-    "engine_installed": false,
+    "weights_downloaded": true,
+    "downloaded_weight_checksum_verified": true,
+    "engine_installed": true,
     "inference_run": false,
     "resident_memory_measured": false,
-    "capacity_guaranteed": false
-  }
+    "capacity_guaranteed": false,
+    "installation_scope": "ignored .local/ only",
+    "generation_attempt_status": 503,
+    "generation_attempt_error": "memory_pressure",
+    "gateway_rss_kib": 11328
+  },
+  "updated_on": "2026-11-09"
 }

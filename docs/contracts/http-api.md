@@ -1,6 +1,6 @@
 # 首版 HTTP 契约草案
 
-初稿：2026-11-08；架构修订：2026-11-09（Asia/Shanghai）。版本：**0.1.0 预发布契约，机器描述已验证，HTTP 服务尚未实现**。
+初稿：2026-11-08；实现修订：2026-11-09（Asia/Shanghai）。版本：**0.1.0 预发布契约；HTTP 与假引擎闭环已实现并验证，真实模型验收未完成**。
 
 机器描述以 [OpenAPI](../../api/openapi.json) 为准；Markdown 解释语义和实现门槛。接口变更同时更新两者及 fixture。
 
@@ -98,4 +98,4 @@
 
 先通过假引擎与可控时间验证上述行为，再用固定的小模型和引擎版本确认适配器实际兑现契约。两类结果分别报告，文档完成不等于接口已经实现或验证通过。
 
-当前 `make contracts` 已验证 OpenAPI 及合成 JSON/SSE fixture；没有向实际推理 HTTP 服务发出请求，运行验收仍在 T5–T7。
+`make contracts` 验证合成 fixture；`scripts/check_live.py` 已对运行中的假引擎服务验证 5 个 GET、JSON 生成及 SSE 生成。原生子进程夹具和真实模型分别报告，见 [运行验证](../reports/2026-11-09-runtime-validation.md)。调度诊断还提供最多 128 条近期决策元数据。

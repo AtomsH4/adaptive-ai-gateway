@@ -3,7 +3,7 @@ package ports
 import (
 	"context"
 
-	"adaptive-ai-gateway/internal/domain"
+	"github.com/AtomsH4/adaptive-ai-gateway/internal/domain"
 )
 
 // ModelLifecycle is used by the coordinator, never directly by an HTTP handler.

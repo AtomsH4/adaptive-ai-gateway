@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"adaptive-ai-gateway/internal/domain"
+	"github.com/AtomsH4/adaptive-ai-gateway/internal/domain"
 )
 
 type StaticSampler struct {
@@ -42,3 +42,10 @@ func (s *StaticSampler) Read(ctx context.Context) (domain.ResourceSnapshot, erro
 type FixedClock struct{ At time.Time }
 
 func (c FixedClock) Now() time.Time { return c.At }
+
+type SyntheticSampler struct{}
+
+func (SyntheticSampler) Sample(ctx context.Context) (domain.ResourceSnapshot, error) {
+	now := time.Now()
+	return domain.ResourceSnapshot{MemoryPressure: domain.Observation[domain.MemoryPressure]{Value: domain.PressureNormal, Quality: domain.Available, ObservedAt: now, Source: "synthetic.development_only"}, AvailableMemoryBytes: domain.Observation[uint64]{Value: 16 << 30, Quality: domain.Available, ObservedAt: now, Source: "synthetic.development_only"}}, ctx.Err()
+}

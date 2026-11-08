@@ -5,8 +5,8 @@ import (
 	"context"
 	"errors"
 
-	"adaptive-ai-gateway/internal/application/ports"
-	"adaptive-ai-gateway/internal/domain"
+	"github.com/AtomsH4/adaptive-ai-gateway/internal/application/ports"
+	"github.com/AtomsH4/adaptive-ai-gateway/internal/domain"
 )
 
 // AssessmentService is a read-only architecture reference use case.

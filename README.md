@@ -2,7 +2,7 @@
 
 面向个人电脑的资源感知 AI 网关：在运行本地模型时，为日常应用保留资源，并解释每次排队、拒绝或模型卸载的原因。
 
-**当前阶段：架构基线与可验证基础代码。** 已实现领域值、消费方接口、资源信号分类、只读应用用例和依赖检查；完整 HTTP 推理服务、真实引擎适配器、资源采集器与 Python 调用示例尚未实现。模型、阈值和性能目标仍需后续实测。
+**当前阶段：可运行的本机原型。** 已有 HTTP/SSE、单模型调度、共享冷启动、有限队列、分阶段预算、受管 llama.cpp 适配器、macOS 内存/CPU 采集和 Python 异步示例。假引擎闭环已通过实际 HTTP 验证；真实模型已下载并校验，但本机内存压力阻止加载，完整实机推理及应用对照实验尚未完成，见[运行记录](docs/reports/2026-11-09-runtime-validation.md)。
 
 本轮重点是低耦合、可扩展性与未来生产演进。[架构主文档](docs/architecture/overview.md)定义模块与依赖，[状态和端口契约](docs/architecture/runtime-contracts.md)定义所有权与取消证据，[生产化路线](docs/architecture/production-evolution.md)列出阶段门槛。
 
@@ -23,7 +23,34 @@
 
 模型层数、上下文容量等启动参数，在受管引擎没有在途请求时重新配置。后续可通过适配器接入 Ollama、LocalAI 或外部网关。
 
-用户已选择按推荐路线继续。架构采用模块化单体：应用层持有准入和账本，HTTP、平台与引擎通过小接口连接，只有组合入口依赖具体实现。当前没有安装推理引擎、下载模型或调用付费模型。
+架构采用模块化单体：应用层持有准入和账本，HTTP、平台与引擎通过小接口连接，只有组合入口依赖具体实现。原生引擎与模型保存在忽略的 `.local/`，不纳入 Git；没有调用付费模型。
+
+## 启动与调用
+
+需要 Go 1.26.3、Python 3.12 和 uv。macOS 的 CPU 归因使用本机 SDK 的 cgo 桥接；禁用 cgo 时该指标明确不可用。
+
+```sh
+make setup-tools setup-client build
+export AIGATEWAY_TOKEN="$(openssl rand -hex 24)"
+bin/gateway -config configs/fake.toml
+```
+
+假引擎只输出合成文本，资源来源标为 `synthetic.development_only`。在配置了相同令牌的终端调用：
+
+```sh
+.venv-client/bin/python examples/python/client.py --model validation-model --stream
+```
+
+真实引擎的固定基线只适用于 macOS arm64；下载量约 508 MB，下载后验证长度与 SHA-256：
+
+```sh
+.venv-tools/bin/python scripts/fetch_baseline.py
+bin/gateway -config configs/local-qwen.toml
+```
+
+此配置使用 Qwen2.5-0.5B、上下文 2048、单执行槽位、2 个 CPU 线程和 Metal GPU 层参数。2 GiB 的加载前余量为待标定初值；warning/critical、关键观测缺失或余量不足时不会加载。GPU 利用率仍不可用，配置变更需重启，尚无热更新或多配置自动选择。
+
+默认监听 `127.0.0.1:8787`。`/healthz` 外的接口要求本地 Bearer 令牌；收到 SIGINT/SIGTERM 时拒绝新工作并有界清理自有实例。
 
 ## 当前可验证的内容
 
@@ -31,15 +58,17 @@
 - 更换资源读取适配器不修改应用用例；失败、过期或未知压力不会伪装成正常。
 - 资源释放证据必须匹配实例代次与执行，取消请求本身不能释放容量。
 - [OpenAPI 3.1.1 契约](api/openapi.json)、严格请求与可扩展响应，以及正常/中断/断流 fixture。
+- 并行准入、共享加载、取消保留占用、观测失效与 critical 恢复；真实子进程夹具验证进程退出证据，区别于模型推理实测。
 
 环境：Go 1.26.3；契约校验使用隔离的 Python 3.12 环境。首次执行：
 
 ```sh
 make setup-tools
 make check
+make setup-client check-client
 ```
 
-`setup-tools` 只安装有版本和哈希锁定的校验依赖；它不安装推理引擎或模型。测试通过只覆盖当前基础代码与合成契约，不代表完整推理已经可用。CI 已配置 Linux/macOS Go 检查及独立契约检查，本地仓库尚未触发远端运行。
+`setup-tools` 和 `setup-client` 使用独立环境及完整哈希锁。CI 配置 Linux/macOS Go 检查、契约及 Python 测试；发布和远端运行状态以实际结果记录，不把本地检查当作远端 CI 成功。
 
 ## 阅读顺序
 
@@ -65,4 +94,4 @@ make check
 
 初始研究日期为 **2026-11-08（Asia/Shanghai）**，架构修订日期为 **2026-11-09**。外部来源分别记录核对日期；本项目自己的设计、预算与性能目标单独标注。
 
-目前包含原创调研、设计与 Go 架构基础代码，没有复制上游推理实现。项目尚未发布，拟议的发布许可为 Apache-2.0；实际发布前确定许可证并检查最终依赖与模型权重的许可。
+本项目采用 [Apache-2.0](LICENSE)。第三方声明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)；引擎和模型遵循各自的许可。本仓库没有复制上游推理实现。

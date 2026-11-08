@@ -36,9 +36,10 @@ type CPUUsage struct {
 }
 
 type ResourceSnapshot struct {
-	MemoryPressure Observation[MemoryPressure]
-	CPU            Observation[CPUUsage]
-	GPUPercent     Observation[float64]
+	MemoryPressure       Observation[MemoryPressure]
+	AvailableMemoryBytes Observation[uint64]
+	CPU                  Observation[CPUUsage]
+	GPUPercent           Observation[float64]
 }
 
 type SignalKind string
@@ -71,4 +72,9 @@ type ResourceAssessment struct {
 	Snapshot   ResourceSnapshot
 	Signal     ResourceSignal
 	ReadFailed bool
+}
+
+type Decision struct {
+	At   time.Time
+	Code string
 }

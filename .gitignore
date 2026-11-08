@@ -20,4 +20,5 @@ vendor/
 node_modules/
 .venv/
 .venv-tools/
+.venv-client/
 __pycache__/

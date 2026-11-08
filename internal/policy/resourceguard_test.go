@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"adaptive-ai-gateway/internal/domain"
-	"adaptive-ai-gateway/internal/policy"
+	"github.com/AtomsH4/adaptive-ai-gateway/internal/domain"
+	"github.com/AtomsH4/adaptive-ai-gateway/internal/policy"
 )
 
 func TestRequiredMemoryEvidenceAndFreshness(t *testing.T) {
