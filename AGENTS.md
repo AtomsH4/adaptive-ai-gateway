@@ -1,6 +1,6 @@
 # Project context
 
-Read `README.md`, `CONTEXT.md`, the current design in `docs/superpowers/specs/`, and `ROADMAP.md` before changing behavior. Accepted decisions live in `docs/adr/`; the evolving implementation review lives in `docs/plans/`. This repository starts with research and a proposed design; do not describe planned capabilities as implemented features.
+Read `README.md`, `CONTEXT.md`, `docs/architecture/overview.md`, `docs/architecture/runtime-contracts.md`, the design in `docs/superpowers/specs/`, and `ROADMAP.md` before changing behavior. Accepted decisions live in `docs/adr/`. The user has chosen the recommended baseline and asked for low coupling, extensibility and a production evolution path; do not reopen recorded choices or confuse architecture foundation tests with a running inference service.
 
 ## Product scope
 
@@ -31,7 +31,15 @@ Read `README.md`, `CONTEXT.md`, the current design in `docs/superpowers/specs/`,
 
 ## Implementation and verification
 
-Keep telemetry collection, policy evaluation, engine management and HTTP forwarding separate. Policy decisions should accept explicit snapshots and clocks so state transitions can be tested deterministically.
+Enforce `architecture/dependencies.json`. Domain values do not import transport, serialization, process or platform APIs. Application code depends on consumer-owned ports, never concrete adapters. Policy is pure and receives time explicitly. Concrete implementations are connected only at the composition root; inbound handlers never acquire engine lifecycle or reservation authority.
+
+Keep inbound use cases in `internal/application/api` separate from outbound contracts in `internal/application/ports`. HTTP adapters may import the inbound API and domain values, not application implementations, outbound ports or other adapters.
+
+Separate periodic `ResourceSampler` from cached `ResourceReader`. HTTP diagnostics must not trigger OS probes or make admission decisions. Preserve output completion versus resource-release completion, and ignore evidence for retired instance incarnations.
+
+Service readiness is separate from instantaneous generation capacity (ADR-0004). An unloaded model or a temporary observation guard does not itself make the application unready; it still cannot bypass request-level resource protection.
+
+Run `make setup-tools` once, then `make check` for relevant source or contract changes. These checks cover dependency boundaries, Go tests/race/vet and OpenAPI fixtures. Lock new tool dependencies with hashes; keep them outside the Go runtime dependency graph. CI configuration is not evidence that remote CI has run.
 
 When implementation begins, prioritize meaningful checks for admission races, cancellation, missing metrics, draining, queue expiry and streaming. Simulated scheduler tests and real model inference measurements must be reported separately.
 

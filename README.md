@@ -2,7 +2,9 @@
 
 面向个人电脑的资源感知 AI 网关：在运行本地模型时，为日常应用保留资源，并解释每次排队、拒绝或模型卸载的原因。
 
-**当前阶段：调研与设计起始仓库。** Git 仓库已建立；应用、推理服务和资源采集器尚未实现。文档中的接口、阈值、性能目标均为设计建议，不能当作已经支持或经过实测的能力。
+**当前阶段：架构基线与可验证基础代码。** 已实现领域值、消费方接口、资源信号分类、只读应用用例和依赖检查；完整 HTTP 推理服务、真实引擎适配器、资源采集器与 Python 调用示例尚未实现。模型、阈值和性能目标仍需后续实测。
+
+本轮重点是低耦合、可扩展性与未来生产演进。[架构主文档](docs/architecture/overview.md)定义模块与依赖，[状态和端口契约](docs/architecture/runtime-contracts.md)定义所有权与取消证据，[生产化路线](docs/architecture/production-evolution.md)列出阶段门槛。
 
 ## 已确定的场景
 
@@ -21,19 +23,37 @@
 
 模型层数、上下文容量等启动参数，在受管引擎没有在途请求时重新配置。后续可通过适配器接入 Ollama、LocalAI 或外部网关。
 
-这个技术选型仍是待审阅的首版设计；本轮没有安装推理引擎、下载模型或调用付费模型。
+用户已选择按推荐路线继续。架构采用模块化单体：应用层持有准入和账本，HTTP、平台与引擎通过小接口连接，只有组合入口依赖具体实现。当前没有安装推理引擎、下载模型或调用付费模型。
+
+## 当前可验证的内容
+
+- 生产 Go 包的依赖方向、未批准导入和循环；检查器有反例测试。
+- 更换资源读取适配器不修改应用用例；失败、过期或未知压力不会伪装成正常。
+- 资源释放证据必须匹配实例代次与执行，取消请求本身不能释放容量。
+- [OpenAPI 3.1.1 契约](api/openapi.json)、严格请求与可扩展响应，以及正常/中断/断流 fixture。
+
+环境：Go 1.26.3；契约校验使用隔离的 Python 3.12 环境。首次执行：
+
+```sh
+make setup-tools
+make check
+```
+
+`setup-tools` 只安装有版本和哈希锁定的校验依赖；它不安装推理引擎或模型。测试通过只覆盖当前基础代码与合成契约，不代表完整推理已经可用。CI 已配置 Linux/macOS Go 检查及独立契约检查，本地仓库尚未触发远端运行。
 
 ## 阅读顺序
 
-1. [上游能力、架构与三条技术路线](docs/research/upstream-comparison.md)
-2. [公开价格、商业模式与产品定位](docs/research/pricing-and-business.md)
-3. [本机环境与首轮验证边界](docs/local-machine.md)
-4. [首版设计草案](docs/superpowers/specs/2026-11-08-adaptive-ai-gateway-design.md)
-5. [阶段路线图](ROADMAP.md)
-6. [来源索引与许可证文件指纹](docs/research/sources.json)
-7. [领域术语](CONTEXT.md)与[实施细节审议](docs/plans/2026-11-08-implementation-review.md)
-8. [实施计划草案与任务依赖](docs/plans/2026-11-08-implementation-plan.md)
-9. [首版 HTTP 契约草案](docs/contracts/http-api.md)
+1. [架构、端口与生产演进](docs/architecture/overview.md)
+2. [上游能力、架构与三条技术路线](docs/research/upstream-comparison.md)
+3. [公开价格、商业模式与产品定位](docs/research/pricing-and-business.md)
+4. [本机环境与首轮验证边界](docs/local-machine.md)
+5. [首版设计草案](docs/superpowers/specs/2026-11-08-adaptive-ai-gateway-design.md)
+6. [阶段路线图](ROADMAP.md)
+7. [来源索引与许可证文件指纹](docs/research/sources.json)
+8. [领域术语](CONTEXT.md)与[实施细节审议](docs/plans/2026-11-08-implementation-review.md)
+9. [实施计划与任务依赖](docs/plans/2026-11-08-implementation-plan.md)
+10. [首版 HTTP 契约](docs/contracts/http-api.md)
+11. [目标要求与验证证据](docs/architecture/verification.md)
 
 ## 首版希望验证的行为
 
@@ -43,6 +63,6 @@
 
 ## 仓库约定
 
-研究来源核对日期为 **2026-11-08（Asia/Shanghai）**。外部价格和功能边界均附原始来源；本项目自己的设计、预算与性能目标单独标注。
+初始研究日期为 **2026-11-08（Asia/Shanghai）**，架构修订日期为 **2026-11-09**。外部来源分别记录核对日期；本项目自己的设计、预算与性能目标单独标注。
 
-目前只包含原创调研与设计文档，没有复制上游源代码。项目尚未发布，拟议的发布许可为 Apache-2.0；实际发布前确定许可证并检查最终依赖与模型权重的许可。
+目前包含原创调研、设计与 Go 架构基础代码，没有复制上游推理实现。项目尚未发布，拟议的发布许可为 Apache-2.0；实际发布前确定许可证并检查最终依赖与模型权重的许可。

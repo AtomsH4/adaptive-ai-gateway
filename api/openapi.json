@@ -1,0 +1,1050 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Adaptive AI Gateway",
+    "version": "0.1.0",
+    "description": "Architecture contract; does not claim a running inference service or complete third-party SDK compatibility."
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8787"
+    }
+  ],
+  "security": [
+    {
+      "LocalToken": []
+    }
+  ],
+  "paths": {
+    "/healthz": {
+      "get": {
+        "operationId": "health",
+        "summary": "Controller liveness",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Controller is alive.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated diagnostic request identity; not an idempotency key.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/readyz": {
+      "get": {
+        "operationId": "ready",
+        "summary": "Application readiness, independent of model residency and instantaneous capacity",
+        "responses": {
+          "200": {
+            "description": "Application can safely handle commands, including bounded queueing and resource rejections. An unloaded model may still be ready.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated diagnostic request identity; not an idempotency key.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ready"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid local token.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated diagnostic request identity; not an idempotency key.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Application is initializing, stopping or structurally unable to process commands.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated diagnostic request identity; not an idempotency key.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/models": {
+      "get": {
+        "operationId": "listModels",
+        "summary": "Configured model identity without loading it",
+        "responses": {
+          "200": {
+            "description": "Single configured model.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated diagnostic request identity; not an idempotency key.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid local token.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated diagnostic request identity; not an idempotency key.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/chat/completions": {
+      "post": {
+        "operationId": "chat",
+        "summary": "Bounded text generation with optional SSE",
+        "description": "Body limited to 1 MiB. Queue 30s cumulative, one shared load 120s, execution 120s, total request 270s are experimental server defaults. Context is checked with the actual model; no silent truncation or model substitution.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Completed JSON result or SSE stream. SSE JSON frames follow CompletionChunk or Error. Only a valid finish reason followed by [DONE] denotes normal stream completion; an error frame is followed by closure without [DONE].",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated diagnostic request identity; not an idempotency key.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatCompletion"
+                }
+              },
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request, unsupported fields or context exceeded.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated diagnostic request identity; not an idempotency key.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid local token.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated diagnostic request identity; not an idempotency key.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown configured model.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated diagnostic request identity; not an idempotency key.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds 1 MiB.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated diagnostic request identity; not an idempotency key.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Waiting capacity full or ordinary slot wait exhausted.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated diagnostic request identity; not an idempotency key.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Upstream protocol failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated diagnostic request identity; not an idempotency key.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Resource guard, telemetry loss or backend unavailable.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated diagnostic request identity; not an idempotency key.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Load, execution or total deadline expired.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated diagnostic request identity; not an idempotency key.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/resources": {
+      "get": {
+        "operationId": "inspectResources",
+        "summary": "Published observations, never an on-demand OS probe",
+        "responses": {
+          "200": {
+            "description": "Published observations, including unavailable/stale fields.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated diagnostic request identity; not an idempotency key.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceDiagnostics"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid local token.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated diagnostic request identity; not an idempotency key.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/scheduler": {
+      "get": {
+        "operationId": "inspectScheduler",
+        "summary": "Capacity and lifecycle projection; never an execution grant",
+        "responses": {
+          "200": {
+            "description": "Application and capacity are separate fields.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated diagnostic request identity; not an idempotency key.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulerDiagnostics"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid local token.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated diagnostic request identity; not an idempotency key.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "LocalToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Single local token. Runtime supplies the secret; no token values belong in this document."
+      }
+    },
+    "schemas": {
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "const": "ok",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "additionalProperties": true
+      },
+      "Ready": {
+        "type": "object",
+        "properties": {
+          "ready": {
+            "const": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ready"
+        ],
+        "additionalProperties": true
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "minLength": 1,
+                "x-known-values": [
+                  "invalid_request",
+                  "unsupported_parameter",
+                  "context_length_exceeded",
+                  "authentication_failed",
+                  "model_not_found",
+                  "request_too_large",
+                  "queue_full",
+                  "queue_timeout",
+                  "telemetry_unavailable",
+                  "telemetry_stale",
+                  "memory_pressure",
+                  "cpu_busy",
+                  "memory_pressure_interrupted",
+                  "engine_unavailable",
+                  "model_load_failed",
+                  "upstream_error",
+                  "model_load_timeout",
+                  "execution_timeout",
+                  "request_timeout",
+                  "service_not_ready",
+                  "service_stopping"
+                ]
+              },
+              "message": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "param": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "type",
+              "param"
+            ],
+            "additionalProperties": true
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "error",
+          "request_id"
+        ],
+        "additionalProperties": true
+      },
+      "Message": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "enum": [
+              "system",
+              "user",
+              "assistant"
+            ],
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ],
+        "additionalProperties": false
+      },
+      "ChatRequest": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string",
+            "minLength": 1
+          },
+          "messages": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            }
+          },
+          "stream": {
+            "type": "boolean",
+            "default": false
+          },
+          "max_tokens": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 512,
+            "default": 512
+          },
+          "temperature": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2,
+            "default": 0.7
+          }
+        },
+        "required": [
+          "model",
+          "messages"
+        ],
+        "additionalProperties": false
+      },
+      "Usage": {
+        "type": "object",
+        "properties": {
+          "prompt_tokens": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "completion_tokens": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total_tokens": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "prompt_tokens",
+          "completion_tokens",
+          "total_tokens"
+        ],
+        "additionalProperties": true
+      },
+      "ChatCompletion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "object": {
+            "const": "chat.completion",
+            "type": "string"
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1
+          },
+          "created": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "choices": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "index": {
+                  "const": 0,
+                  "type": "integer"
+                },
+                "message": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "const": "assistant",
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "role",
+                    "content"
+                  ],
+                  "additionalProperties": true
+                },
+                "finish_reason": {
+                  "type": "string",
+                  "enum": [
+                    "stop",
+                    "length"
+                  ]
+                }
+              },
+              "required": [
+                "index",
+                "message",
+                "finish_reason"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "usage": {
+            "$ref": "#/components/schemas/Usage"
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "model",
+          "choices"
+        ],
+        "additionalProperties": true
+      },
+      "CompletionChunk": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "object": {
+            "const": "chat.completion.chunk",
+            "type": "string"
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1
+          },
+          "choices": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "index": {
+                  "const": 0,
+                  "type": "integer"
+                },
+                "delta": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "const": "assistant",
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [],
+                  "additionalProperties": true
+                },
+                "finish_reason": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    null,
+                    "stop",
+                    "length"
+                  ]
+                }
+              },
+              "required": [
+                "index",
+                "delta",
+                "finish_reason"
+              ],
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "model",
+          "choices"
+        ],
+        "additionalProperties": true
+      },
+      "ModelList": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "list"
+          },
+          "data": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "object": {
+                  "type": "string",
+                  "const": "model"
+                }
+              },
+              "required": [
+                "id",
+                "object"
+              ],
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "object",
+          "data"
+        ],
+        "additionalProperties": true
+      },
+      "MemoryObservation": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              null,
+              "normal",
+              "warning",
+              "critical"
+            ]
+          },
+          "quality": {
+            "type": "string",
+            "enum": [
+              "available",
+              "unavailable",
+              "stale"
+            ]
+          },
+          "observed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "value",
+          "quality",
+          "observed_at",
+          "source"
+        ],
+        "additionalProperties": true,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "quality": {
+                  "const": "unavailable"
+                }
+              },
+              "required": [
+                "quality"
+              ]
+            },
+            "then": {
+              "properties": {
+                "value": {
+                  "type": "null"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "quality": {
+                  "enum": [
+                    "available",
+                    "stale"
+                  ]
+                }
+              },
+              "required": [
+                "quality"
+              ]
+            },
+            "then": {
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "enum": [
+                    "normal",
+                    "warning",
+                    "critical"
+                  ]
+                },
+                "observed_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "source": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        ]
+      },
+      "ResourceDiagnostics": {
+        "type": "object",
+        "properties": {
+          "assessed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "memory_pressure": {
+            "$ref": "#/components/schemas/MemoryObservation"
+          }
+        },
+        "required": [
+          "assessed_at",
+          "memory_pressure"
+        ],
+        "additionalProperties": true
+      },
+      "SchedulerDiagnostics": {
+        "type": "object",
+        "properties": {
+          "service_ready": {
+            "type": "boolean"
+          },
+          "can_execute_now": {
+            "type": "boolean"
+          },
+          "can_queue": {
+            "type": "boolean"
+          },
+          "engine_state": {
+            "type": "string",
+            "minLength": 1
+          },
+          "protection_state": {
+            "type": "string",
+            "minLength": 1
+          },
+          "active_executions": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "waiting_requests": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reason_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "service_ready",
+          "can_execute_now",
+          "can_queue",
+          "engine_state",
+          "protection_state",
+          "active_executions",
+          "waiting_requests",
+          "reason_codes"
+        ],
+        "additionalProperties": true,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "engine_state": {
+                  "enum": [
+                    "unloaded",
+                    "loading",
+                    "draining",
+                    "stopping",
+                    "failed",
+                    "unknown"
+                  ]
+                }
+              },
+              "required": [
+                "engine_state"
+              ]
+            },
+            "then": {
+              "properties": {
+                "can_execute_now": {
+                  "const": false
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "protection_state": {
+                  "enum": [
+                    "observation_guard",
+                    "reclaiming",
+                    "recovering",
+                    "constrained"
+                  ]
+                }
+              },
+              "required": [
+                "protection_state"
+              ]
+            },
+            "then": {
+              "properties": {
+                "can_execute_now": {
+                  "const": false
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

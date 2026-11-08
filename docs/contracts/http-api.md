@@ -1,6 +1,8 @@
 # 首版 HTTP 契约草案
 
-日期：2026-11-08（Asia/Shanghai）。状态：**待整体审阅的工程契约，尚未实现**。
+初稿：2026-11-08；架构修订：2026-11-09（Asia/Shanghai）。版本：**0.1.0 预发布契约，机器描述已验证，HTTP 服务尚未实现**。
+
+机器描述以 [OpenAPI](../../api/openapi.json) 为准；Markdown 解释语义和实现门槛。接口变更同时更新两者及 fixture。
 
 这是本项目首版支持的调用子集。行为依据见 [设计草案](../superpowers/specs/2026-11-08-adaptive-ai-gateway-design.md)，Python 验收方式见 [实施计划](../plans/2026-11-08-implementation-plan.md#7-python-调用方实施提案)。不据此宣称任意模型提供商或 SDK 的全部功能兼容。
 
@@ -17,13 +19,15 @@
 | 接口 | 首版含义 |
 | --- | --- |
 | `GET /healthz` | 只报告控制进程存活；不表示模型或资源已就绪 |
-| `GET /readyz` | 引擎就绪且当前可立即开始生成时返回 200，否则 503 并带原因 |
+| `GET /readyz` | 应用已初始化、可安全处理命令时返回 200；启动、关闭或结构故障时 503；不要求模型已加载或有立即执行槽位 |
 | `GET /v1/models` | 返回唯一配置的真实模型 ID；不隐式加载模型 |
 | `POST /v1/chat/completions` | 普通或流式文本聊天生成 |
 | `GET /admin/resources` | 返回资源观测值、来源、新鲜度与不可用原因 |
 | `GET /admin/scheduler` | 返回引擎、保护、队列及执行状态的元数据 |
 
 诊断接口在观测不完整时仍可返回 200 和明确的 unavailable / stale 字段；不能为显示完整而填充零。诊断响应不包含原始 prompt、response 或密钥。
+
+`/admin/scheduler` 分别报告 `service_ready`、`can_execute_now`、`can_queue`、引擎与保护状态。模型未加载、忙碌或临时观测保护不单独使服务未就绪，实际请求仍受完整准入约束；设计理由见 [ADR-0004](../adr/0004-service-readiness-and-capacity.md)。
 
 ## 3. 文本生成请求
 
@@ -64,6 +68,7 @@
 | 503 | `memory_pressure`、`cpu_busy` | 对应资源条件阻塞至等待预算到期；critical 内存压力可立即拒绝 |
 | 503 | `memory_pressure_interrupted` | 已获准的生成被紧急回收中断，且尚未发送成功响应 |
 | 503 | `engine_unavailable`、`model_load_failed` | 引擎不可用或单次加载失败 |
+| 503 | `service_not_ready`、`service_stopping` | 应用未完成初始化、结构故障或正在关闭 |
 | 502 | `upstream_error` | 已执行的上游协议或响应异常 |
 | 504 | `model_load_timeout`、`execution_timeout`、`request_timeout` | 对应加载、执行或总时限到期 |
 
@@ -92,3 +97,5 @@
 固定一个 Python 异步 HTTP 调用方，分别验证请求字段、鉴权、模型身份、过大请求、队列满、加载等待、各类超时、取消、错误事件和正常结束。流式解析覆盖跨网络分片的 UTF-8 与 SSE 事件边界，不能将网络分片直接当作一条事件。
 
 先通过假引擎与可控时间验证上述行为，再用固定的小模型和引擎版本确认适配器实际兑现契约。两类结果分别报告，文档完成不等于接口已经实现或验证通过。
+
+当前 `make contracts` 已验证 OpenAPI 及合成 JSON/SSE fixture；没有向实际推理 HTTP 服务发出请求，运行验收仍在 T5–T7。

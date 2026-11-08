@@ -1,9 +1,10 @@
 {
   "schema_version": 1,
   "checked_on": "2026-11-08",
+  "updated_on": "2026-11-09",
   "timezone": "Asia/Shanghai",
-  "scope": "Research and design only; no upstream implementation vendored.",
-  "fingerprint_semantics": "git_blob_sha identifies a file's Git content object, not a repository commit or a dependency version. Branch URLs and web pages may change.",
+  "scope": "Research, design, architecture and validation tooling; no upstream inference implementation vendored.",
+  "fingerprint_semantics": "git_blob_sha identifies a file's Git content object, not a repository commit or a dependency version. commit_sha pins a repository revision used by CI. Entries without checked_on retain the initial checked_on date; branch URLs and web pages may change.",
   "sources": [
     {
       "id": "gpustack-gpustack-license",
@@ -221,6 +222,92 @@
       "type": "official_webpage",
       "url": "https://docs.python.org/3.11/library/asyncio-task.html#asyncio.timeout",
       "observation": "asyncio timeout and cancellation behavior for the proposed outer request deadline."
+    },
+    {
+      "id": "kubernetes-readiness-probes",
+      "type": "official_webpage",
+      "checked_on": "2026-11-09",
+      "url": "https://kubernetes.io/docs/concepts/workloads/pods/probes/#readiness-probe",
+      "observation": "Failed readiness removes a Pod from Service endpoint traffic. This supports separating API command readiness from on-demand model execution capacity."
+    },
+    {
+      "id": "openapi-3-1-1",
+      "type": "official_specification",
+      "checked_on": "2026-11-09",
+      "url": "https://spec.openapis.org/oas/v3.1.1.html",
+      "version_observed": "3.1.1",
+      "observation": "Chosen contract format for api/openapi.json, not a claim that this is the newest specification release."
+    },
+    {
+      "id": "prometheus-label-cardinality",
+      "type": "official_webpage",
+      "checked_on": "2026-11-09",
+      "url": "https://prometheus.io/docs/practices/instrumentation/#do-not-overuse-labels",
+      "observation": "Instrumentation guidance supports bounded label sets and keeping request IDs out of metric labels."
+    },
+    {
+      "id": "opentelemetry-metric-memory",
+      "type": "official_webpage",
+      "checked_on": "2026-11-09",
+      "url": "https://opentelemetry.io/docs/specs/otel/metrics/supplementary-guidelines/#memory-management",
+      "observation": "Metric memory-management guidance informs future bounded observability; no OpenTelemetry runtime dependency is installed in the Go module."
+    },
+    {
+      "id": "openapi-spec-validator-documentation",
+      "type": "official_webpage",
+      "checked_on": "2026-11-09",
+      "url": "https://openapi-spec-validator.readthedocs.io/en/latest/",
+      "observation": "Used for offline validation of the self-contained API specification. This does not exercise an HTTP server."
+    },
+    {
+      "id": "openapi-spec-validator-package",
+      "type": "official_package_metadata",
+      "checked_on": "2026-11-09",
+      "url": "https://pypi.org/pypi/openapi-spec-validator/0.9.0/json",
+      "package": "openapi-spec-validator",
+      "version_observed": "0.9.0",
+      "requires_python_observed": ">=3.10,<4.0",
+      "observation": "Installed only in ignored .venv-tools; complete transitive requirements and artifact hashes are locked under tools/."
+    },
+    {
+      "id": "jsonschema-validation-package",
+      "type": "official_package_metadata",
+      "checked_on": "2026-11-09",
+      "url": "https://pypi.org/pypi/jsonschema/4.26.0/json",
+      "package": "jsonschema",
+      "version_observed": "4.26.0",
+      "requires_python_observed": ">=3.10",
+      "observation": "Draft 2020-12 and format validation used for synthetic JSON and SSE payload fixtures; isolated from Go runtime dependencies."
+    },
+    {
+      "id": "ci-actions-checkout",
+      "type": "github_action",
+      "checked_on": "2026-11-09",
+      "repository": "actions/checkout",
+      "release_tag": "v7.0.1",
+      "commit_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "url": "https://github.com/actions/checkout/tree/3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "observation": "Release tag target verified through the public GitHub API and pinned in the local workflow; no remote workflow run has occurred."
+    },
+    {
+      "id": "ci-actions-setup-go",
+      "type": "github_action",
+      "checked_on": "2026-11-09",
+      "repository": "actions/setup-go",
+      "release_tag": "v7.0.0",
+      "commit_sha": "b7ad1dad31e06c5925ef5d2fc7ad053ef454303e",
+      "url": "https://github.com/actions/setup-go/tree/b7ad1dad31e06c5925ef5d2fc7ad053ef454303e",
+      "observation": "Release tag target verified through the public GitHub API; local CI configuration selects Go 1.26.3 for Linux/macOS checks."
+    },
+    {
+      "id": "ci-actions-setup-python",
+      "type": "github_action",
+      "checked_on": "2026-11-09",
+      "repository": "actions/setup-python",
+      "release_tag": "v7.1.0",
+      "commit_sha": "6d4fd22b20465ccc0f7354476588e8df7c9ca0e0",
+      "url": "https://github.com/actions/setup-python/tree/6d4fd22b20465ccc0f7354476588e8df7c9ca0e0",
+      "observation": "Release tag target verified through the public GitHub API; local CI configuration selects Python 3.12.13 for contract tooling."
     }
   ],
   "unresolved_retrievals": [

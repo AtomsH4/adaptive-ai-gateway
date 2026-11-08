@@ -1,0 +1,281 @@
+{
+  "note": "Synthetic contract fixtures, not real model responses or HTTP runtime tests.",
+  "json_cases": [
+    {
+      "name": "minimal text request",
+      "schema": "ChatRequest",
+      "valid": true,
+      "payload": {
+        "model": "validation-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "测试"
+          }
+        ]
+      }
+    },
+    {
+      "name": "explicit stream request",
+      "schema": "ChatRequest",
+      "valid": true,
+      "payload": {
+        "model": "validation-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "测试"
+          }
+        ],
+        "stream": true,
+        "max_tokens": 128,
+        "temperature": 0
+      }
+    },
+    {
+      "name": "empty messages rejected",
+      "schema": "ChatRequest",
+      "valid": false,
+      "payload": {
+        "model": "validation-model",
+        "messages": []
+      }
+    },
+    {
+      "name": "unknown request field rejected",
+      "schema": "ChatRequest",
+      "valid": false,
+      "payload": {
+        "model": "validation-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "测试"
+          }
+        ],
+        "tools": []
+      }
+    },
+    {
+      "name": "output cap enforced",
+      "schema": "ChatRequest",
+      "valid": false,
+      "payload": {
+        "model": "validation-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "测试"
+          }
+        ],
+        "max_tokens": 513
+      }
+    },
+    {
+      "name": "fractional token limit rejected",
+      "schema": "ChatRequest",
+      "valid": false,
+      "payload": {
+        "model": "validation-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "测试"
+          }
+        ],
+        "max_tokens": 1.5
+      }
+    },
+    {
+      "name": "multimodal content rejected",
+      "schema": "ChatRequest",
+      "valid": false,
+      "payload": {
+        "model": "validation-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "test"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "response complete",
+      "schema": "ChatCompletion",
+      "valid": true,
+      "payload": {
+        "id": "completion-fixture",
+        "object": "chat.completion",
+        "model": "validation-model",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "你好"
+            },
+            "finish_reason": "stop"
+          }
+        ]
+      }
+    },
+    {
+      "name": "forward response field accepted",
+      "schema": "ChatCompletion",
+      "valid": true,
+      "payload": {
+        "id": "completion-fixture",
+        "object": "chat.completion",
+        "model": "validation-model",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "你好"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "future_optional_field": "supported"
+      }
+    },
+    {
+      "name": "unknown future error stays an error",
+      "schema": "Error",
+      "valid": true,
+      "payload": {
+        "error": {
+          "code": "future_guard_reason",
+          "message": "Required pressure observation is unavailable.",
+          "type": "resource_error",
+          "param": null
+        },
+        "request_id": "request-fixture"
+      }
+    },
+    {
+      "name": "missing error identity rejected",
+      "schema": "Error",
+      "valid": false,
+      "payload": {
+        "error": {
+          "code": "telemetry_unavailable",
+          "message": "Required pressure observation is unavailable.",
+          "type": "resource_error",
+          "param": null
+        }
+      }
+    },
+    {
+      "name": "ready does not require loaded model",
+      "schema": "Ready",
+      "valid": true,
+      "payload": {
+        "ready": true
+      }
+    },
+    {
+      "name": "unloaded capacity is not executable",
+      "schema": "SchedulerDiagnostics",
+      "valid": true,
+      "payload": {
+        "service_ready": true,
+        "can_execute_now": false,
+        "can_queue": true,
+        "engine_state": "unloaded",
+        "protection_state": "normal",
+        "active_executions": 0,
+        "waiting_requests": 0,
+        "reason_codes": []
+      }
+    },
+    {
+      "name": "unloaded cannot claim execution capacity",
+      "schema": "SchedulerDiagnostics",
+      "valid": false,
+      "payload": {
+        "service_ready": true,
+        "can_execute_now": true,
+        "can_queue": true,
+        "engine_state": "unloaded",
+        "protection_state": "normal",
+        "active_executions": 0,
+        "waiting_requests": 0,
+        "reason_codes": []
+      }
+    },
+    {
+      "name": "observation guard cannot execute",
+      "schema": "SchedulerDiagnostics",
+      "valid": false,
+      "payload": {
+        "service_ready": true,
+        "can_execute_now": true,
+        "can_queue": true,
+        "engine_state": "ready",
+        "protection_state": "observation_guard",
+        "active_executions": 0,
+        "waiting_requests": 0,
+        "reason_codes": [
+          "telemetry_stale"
+        ]
+      }
+    },
+    {
+      "name": "unavailable memory is null",
+      "schema": "MemoryObservation",
+      "valid": true,
+      "payload": {
+        "value": null,
+        "quality": "unavailable",
+        "observed_at": null,
+        "source": "test"
+      }
+    },
+    {
+      "name": "unavailable memory cannot claim normal",
+      "schema": "MemoryObservation",
+      "valid": false,
+      "payload": {
+        "value": "normal",
+        "quality": "unavailable",
+        "observed_at": null,
+        "source": "test"
+      }
+    }
+  ],
+  "stream_cases": [
+    {
+      "name": "completed stream",
+      "expected": "completed",
+      "data": "data: {\"id\":\"completion-fixture\",\"object\":\"chat.completion.chunk\",\"model\":\"validation-model\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"你好\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"completion-fixture\",\"object\":\"chat.completion.chunk\",\"model\":\"validation-model\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
+    },
+    {
+      "name": "unexpected EOF",
+      "expected": "incomplete",
+      "data": "data: {\"id\":\"completion-fixture\",\"object\":\"chat.completion.chunk\",\"model\":\"validation-model\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"部分\"},\"finish_reason\":null}]}\n\n"
+    },
+    {
+      "name": "explicit interrupted stream",
+      "expected": "failed",
+      "data": "data: {\"id\":\"completion-fixture\",\"object\":\"chat.completion.chunk\",\"model\":\"validation-model\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"部分\"},\"finish_reason\":null}]}\n\ndata: {\"error\":{\"code\":\"memory_pressure_interrupted\",\"message\":\"Required pressure observation is unavailable.\",\"type\":\"resource_error\",\"param\":null},\"request_id\":\"request-fixture\"}\n\n"
+    },
+    {
+      "name": "done without finish",
+      "expected": "invalid",
+      "data": "data: {\"id\":\"completion-fixture\",\"object\":\"chat.completion.chunk\",\"model\":\"validation-model\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"部分\"},\"finish_reason\":null}]}\n\ndata: [DONE]\n\n"
+    },
+    {
+      "name": "error cannot be success",
+      "expected": "invalid",
+      "data": "data: {\"error\":{\"code\":\"telemetry_unavailable\",\"message\":\"Required pressure observation is unavailable.\",\"type\":\"resource_error\",\"param\":null},\"request_id\":\"request-fixture\"}\n\ndata: [DONE]\n\n"
+    }
+  ]
+}
