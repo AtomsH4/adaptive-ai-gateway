@@ -8,7 +8,7 @@
 
 - 个人电脑，兼顾日常使用与本地 AI。
 - 首台验证设备为 macOS / Apple Silicon / 8 GiB 内存。
-- 优先在请求之间调整资源占用，保留正在进行的生成请求。
+- 日常调度优先在请求之间调整资源占用；严重内存压力下日常应用优先，允许紧急中断生成并回收受管引擎占用，见 [ADR-0001](docs/adr/0001-prioritize-everyday-apps-under-critical-pressure.md)。
 
 ## 推荐路线
 
@@ -26,6 +26,7 @@
 4. [首版设计草案](docs/superpowers/specs/2026-11-08-adaptive-ai-gateway-design.md)
 5. [阶段路线图](ROADMAP.md)
 6. [来源索引与许可证文件指纹](docs/research/sources.json)
+7. [领域术语](CONTEXT.md)与[实施细节审议](docs/plans/2026-11-08-implementation-review.md)
 
 ## 首版希望验证的行为
 

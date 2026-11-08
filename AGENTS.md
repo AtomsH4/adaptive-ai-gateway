@@ -1,6 +1,6 @@
 # Project context
 
-Read `README.md`, the current design in `docs/superpowers/specs/`, and `ROADMAP.md` before changing behavior. This repository starts with research and a proposed design; do not describe planned capabilities as implemented features.
+Read `README.md`, `CONTEXT.md`, the current design in `docs/superpowers/specs/`, and `ROADMAP.md` before changing behavior. Accepted decisions live in `docs/adr/`; the evolving implementation review lives in `docs/plans/`. This repository starts with research and a proposed design; do not describe planned capabilities as implemented features.
 
 ## Product scope
 
@@ -15,8 +15,9 @@ Read `README.md`, the current design in `docs/superpowers/specs/`, and `ROADMAP.
 - On unified-memory hardware, never add RAM and GPU memory as independent capacity.
 - Represent unavailable or stale metrics explicitly; never turn them into zero usage.
 - Account for in-flight requests and concurrent model-load reservations before admission.
-- Cancel upstream work when the client disconnects, and release reservations exactly once.
-- Drain in-flight requests before changing engine startup parameters or unloading a model.
+- Propagate client cancellation upstream. Release execution reservations exactly once after engine completion or owned-process exit is confirmed; an HTTP disconnect alone is not proof of released compute.
+- Use normal draining for configuration changes and idle unloading. Under confirmed critical memory pressure, follow ADR-0001: daily applications take priority and bounded emergency reclamation may interrupt generation and terminate an owned engine.
+- Once emergency cancellation has started, finish reclamation and report interruption even if pressure subsequently improves. Never silently retry an interrupted generation.
 - Only terminate child processes owned by this application; an attached external server is not an owned process.
 - Bound queue length and wait time. Expose reason codes for resource decisions.
 - Default to local execution. Remote routing requires explicit configuration and a request policy that permits it.
