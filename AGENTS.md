@@ -9,6 +9,7 @@ Read `README.md`, `CONTEXT.md`, the current design in `docs/superpowers/specs/`,
 - Prefer one Go control process and an external native inference engine.
 - Keep model identity, supported context and routing destination explicit.
 - The first real caller is the user's own script or SDK. Validate the HTTP contract and one selected client path; do not make a chat UI or a new standalone SDK a prerequisite for the first release.
+- Validate the complete lifecycle with a pinned small model before evaluating the user's target model. The current candidate metadata is in `docs/research/small-model-baseline.json`; metadata verification is not a successful inference run or a memory-capacity guarantee.
 - Keep research and user-facing documentation in Chinese; use English for code identifiers.
 
 ## Resource and lifecycle invariants

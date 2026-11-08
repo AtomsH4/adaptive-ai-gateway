@@ -10,6 +10,7 @@
 - 首台验证设备为 macOS / Apple Silicon / 8 GiB 内存。
 - 第一个真实使用入口为用户自己的脚本或 SDK；首版围绕程序调用验证，不依赖聊天客户端或桌面界面。
 - 模型尚未加载时，同一个生成请求在明确时限内等待冷启动，然后继续生成；调用方可以取消。
+- 首个实机目标为固定小模型的完整流程验证，随后再评估实际目标模型；测试文件的版本与校验记录见[验证模型基线](docs/research/small-model-baseline.json)。
 - 在内存安全预算内允许 AI 充分利用空闲算力；其他应用需要资源时再让出，不因 AI 自身造成的全机 CPU 高占用单独触发限流。
 - 日常调度优先在请求之间调整资源占用；严重内存压力下日常应用优先，允许紧急中断生成并回收受管引擎占用，见 [ADR-0001](docs/adr/0001-prioritize-everyday-apps-under-critical-pressure.md)。
 
@@ -30,6 +31,7 @@
 5. [阶段路线图](ROADMAP.md)
 6. [来源索引与许可证文件指纹](docs/research/sources.json)
 7. [领域术语](CONTEXT.md)与[实施细节审议](docs/plans/2026-11-08-implementation-review.md)
+8. [实施计划草案与任务依赖](docs/plans/2026-11-08-implementation-plan.md)
 
 ## 首版希望验证的行为
 

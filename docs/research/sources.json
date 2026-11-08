@@ -135,6 +135,59 @@
       "url": "https://developer.apple.com/documentation/metal/mtldevice/recommendedmaxworkingsetsize",
       "observation": "Recommended GPU working set is performance guidance. hasUnifiedMemory describes shared CPU/GPU memory.",
       "type": "official_webpage"
+    },
+    {
+      "id": "qwen-validation-model-card",
+      "type": "official_webpage",
+      "url": "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF",
+      "observation": "Official small-model GGUF card; selected for lifecycle validation, not quality evaluation."
+    },
+    {
+      "id": "qwen-validation-model-metadata",
+      "type": "official_model_metadata",
+      "url": "https://huggingface.co/api/models/Qwen/Qwen2.5-0.5B-Instruct-GGUF?blobs=true",
+      "model_revision": "9217f5db79a29953eb74d5343926648285ec7e67",
+      "observation": "Selected Q4_K_M file size and LFS SHA-256 recorded in small-model-baseline.json; weights were not downloaded."
+    },
+    {
+      "id": "qwen-validation-model-license",
+      "type": "official_model_license",
+      "url": "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/9217f5db79a29953eb74d5343926648285ec7e67/LICENSE",
+      "license_observed": "Apache-2.0",
+      "text_sha256": "832dd9e00a68dd83b3c3fb9f5588dad7dcf337a0db50f7d9483f310cd292e92e"
+    },
+    {
+      "id": "llama-validation-release",
+      "type": "official_release_metadata",
+      "url": "https://github.com/ggml-org/llama.cpp/releases/tag/v0.9.0",
+      "release_tag": "v0.9.0",
+      "observation": "Candidate release and tagged server documentation inspected. No installation artifact has been verified or installed."
+    },
+    {
+      "id": "llama-validation-server-doc",
+      "type": "github_file",
+      "repository": "ggml-org/llama.cpp",
+      "path": "tools/server/README.md",
+      "ref": "v0.9.0",
+      "url": "https://github.com/ggml-org/llama.cpp/blob/v0.9.0/tools/server/README.md",
+      "git_blob_sha": "afa448b8a736b41ff1adf706ea9d90c22683ed63",
+      "excerpt_start_line": 1,
+      "excerpt_end_line": 70
+    },
+    {
+      "id": "apple-xnu-pressure-export",
+      "type": "github_file",
+      "repository": "apple-oss-distributions/xnu",
+      "path": "bsd/kern/kern_memorystatus_notify.c",
+      "url": "https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_memorystatus_notify.c",
+      "git_blob_sha": "296aa22251f865b3aec7ab84c4f8caf413027bb0",
+      "observation": "The sysctl handler converts internal pressure enum values to userspace dispatch flags. The read sysctl is masked in this source."
+    },
+    {
+      "id": "apple-dispatch-pressure-flags",
+      "type": "official_webpage",
+      "url": "https://developer.apple.com/documentation/dispatch/dispatch_source_memorypressure_flags_t",
+      "observation": "Public meanings of normal, warning and critical flags, cross-checked against the installed SDK header values 1, 2 and 4."
     }
   ],
   "unresolved_retrievals": [
@@ -154,7 +207,10 @@
       "sysctl -n hw.memsize",
       "go version",
       "python3 --version",
-      "command path checks"
+      "command path checks",
+      "sysctl -n kern.memorystatus_vm_pressure_level",
+      "xcrun --show-sdk-path",
+      "read installed SDK dispatch/source.h pressure flag definitions"
     ],
     "retained_unique_machine_identifiers": false,
     "real_inference_benchmark_performed": false

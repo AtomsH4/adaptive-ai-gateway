@@ -1,0 +1,41 @@
+{
+  "checked_on": "2026-11-08",
+  "timezone": "Asia/Shanghai",
+  "status": "development_validation_candidate_not_benchmarked",
+  "purpose": "Validate loading, admission, generation, cancellation and reclamation before evaluating target-model quality.",
+  "model": {
+    "repository": "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
+    "model_card_url": "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF",
+    "metadata_url": "https://huggingface.co/api/models/Qwen/Qwen2.5-0.5B-Instruct-GGUF?blobs=true",
+    "revision": "9217f5db79a29953eb74d5343926648285ec7e67",
+    "filename": "qwen2.5-0.5b-instruct-q4_k_m.gguf",
+    "quantization": "Q4_K_M",
+    "size_bytes": 491400032,
+    "sha256_from_upstream_lfs_metadata": "74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db",
+    "license": "Apache-2.0",
+    "license_url": "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/9217f5db79a29953eb74d5343926648285ec7e67/LICENSE",
+    "license_text_sha256": "832dd9e00a68dd83b3c3fb9f5588dad7dcf337a0db50f7d9483f310cd292e92e"
+  },
+  "engine_candidate": {
+    "repository": "ggml-org/llama.cpp",
+    "release_tag": "v0.9.0",
+    "release_url": "https://github.com/ggml-org/llama.cpp/releases/tag/v0.9.0",
+    "server_documentation_url": "https://github.com/ggml-org/llama.cpp/blob/v0.9.0/tools/server/README.md",
+    "server_documentation_git_blob_sha": "afa448b8a736b41ff1adf706ea9d90c22683ed63",
+    "installation_artifact_verified": false
+  },
+  "proposed_initial_probe": {
+    "context_tokens": 2048,
+    "concurrent_generations": 1,
+    "probe_max_output_tokens": 128,
+    "note": "Probe output is shorter than the proposed public API cap of 512. These values are not a successful-run record."
+  },
+  "local_verification": {
+    "weights_downloaded": false,
+    "downloaded_weight_checksum_verified": false,
+    "engine_installed": false,
+    "inference_run": false,
+    "resident_memory_measured": false,
+    "capacity_guaranteed": false
+  }
+}
