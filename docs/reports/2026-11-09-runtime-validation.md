@@ -49,4 +49,4 @@ free + speculative 是保守估计，不等同于操作系统能回收的全部�
 2. 用 Python 示例重复真实路径，补齐 T7 的模型验收；然后执行 T8 的代表性日常应用对照。
 3. 当前配置变更需重启；多 profile 自动切换、热更新、journal 和崩溃恢复属于后续明确任务。
 
-GitHub 发布已获用户授权；账号与 SSH 推送认证已确认，目标名 `AtomsH4/adaptive-ai-gateway`。创建时点浏览器控制不可用、连接器无建仓能力且仓库查询为 404，发布状态必须由实际创建与推送结果更新，不能将目标 URL 当成已存在仓库。
+用户已创建[公开仓库 AtomsH4/adaptive-ai-gateway](https://github.com/AtomsH4/adaptive-ai-gateway)，GitHub API 已核验可见性为 public，账号与 SSH 推送认证一致。代码通过 Git 推送到 main；远端检查结果以该仓库的 Actions 记录为准，与上面的本地验证分开。
