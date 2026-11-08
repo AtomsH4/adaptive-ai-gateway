@@ -22,6 +22,8 @@ Read `README.md`, `CONTEXT.md`, the current design in `docs/superpowers/specs/`,
 - Once emergency cancellation has started, finish reclamation and report interruption even if pressure subsequently improves. Never silently retry an interrupted generation.
 - Only terminate child processes owned by this application; an attached external server is not an owned process.
 - Bound queue length and wait time. Expose reason codes for resource decisions.
+- A generation request may wait for the required model's cold start and then execute on the same HTTP request. Track ordinary queue wait, shared model-load wait, execution time and the total deadline separately; new waiters or state transitions must not reset budgets.
+- Share one bounded load attempt across waiters. Cancelling one waiter must not cancel a load needed by others; if no demand remains, cancel an unnecessary load without releasing its memory reservation before confirmed cleanup.
 - Default to local execution. Remote routing requires explicit configuration and a request policy that permits it.
 
 ## Implementation and verification
