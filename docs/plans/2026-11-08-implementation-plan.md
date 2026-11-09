@@ -1,136 +1,135 @@
-# 首版实施计划
+# Initial implementation plan
 
-初稿：2026-11-08；架构修订：2026-11-09（Asia/Shanghai）。状态：**已按用户推荐选择采用，架构基础已实现并验证；完整推理服务按下列工作包继续实现**。
+Drafted 2026-11-08; updated 2026-11-09 (Asia/Shanghai). T0-T5 have implementations and recorded-path validation. Native model acceptance remains pending.
 
-行为依据以 [首版设计](../superpowers/specs/2026-11-08-adaptive-ai-gateway-design.md) 与 [HTTP 契约](../contracts/http-api.md) 为准；模块边界以 [架构主文档](../architecture/overview.md) 为准。下面区分现有基础和未实现工作，不把端口定义当作完整服务。
+Behavior follows the [design](../superpowers/specs/2026-11-08-adaptive-ai-gateway-design.md) and [HTTP contract](../contracts/http-api.md); dependencies follow the [architecture](../architecture/overview.md).
 
-## 1. 已确认的交付目标
+## 1. Delivery scope
 
-- 首版用于个人电脑，先在本机 macOS arm64 / 8 GiB 环境验证。
-- 内存安全预算内充分利用空闲算力；严重内存压力下优先保护日常应用，允许紧急中断受管生成。
-- 用户自己的 Python 脚本是首个真实调用方。
-- 同一请求可以等待一次有时限的共享冷启动，然后继续生成。
-- 先用固定小模型验证生命周期和资源控制，再评估实际目标模型。
-- 关键内存压力观测不可用或过期时，暂停新生成和新模型加载，保留在途请求，恢复可靠观测后再放行。
+- Personal-computer use, initially macOS arm64 with 8 GiB unified memory.
+- Use idle compute within memory constraints. Critical pressure prioritizes everyday applications and can interrupt managed generation.
+- Python scripts as the first real client.
+- One request can wait for one bounded shared cold start and then generate.
+- Validate lifecycle and resource control with a pinned small model before target-model evaluation.
+- Missing or stale required memory pressure pauses new generation/loading, preserves active requests, and requires reliable recovery observations.
 
-七项产品取舍已逐项确认，用户随后明确按推荐方案继续，并要求低耦合、可扩展和生产演进。已有 Go 领域值、消费方端口、只读应用用例、纯资源信号分类和依赖检查；已有 OpenAPI 及合成 fixture 校验。实际平台适配、调度账本、HTTP 服务、引擎完成证据与内存标定仍属于后续任务。
+The design uses a modular monolith with replaceable adapters and separate production release gates. Current implementation and measurement limits are in the [runtime report](../reports/2026-11-09-runtime-validation.md).
 
-## 2. 技术依据与首轮验证基线
+## 2. Validation baseline
 
-验证模型为官方 [Qwen2.5-0.5B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF) 的 Q4_K_M 文件，现已下载并核验固定摘要。文件大小不代表进程或统一内存峰值；真实生成被当前本机资源门槛阻止，见 [基线记录](../research/small-model-baseline.json) 和 [运行报告](../reports/2026-11-09-runtime-validation.md)。
+The [Qwen2.5-0.5B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF) Q4_K_M artifact is downloaded and digest-verified. [Baseline metadata](../research/small-model-baseline.json) records its revision, size, digest, and license. File length does not establish peak unified-memory use. Host resource protection prevented generation during the recorded run.
 
-引擎采用 llama.cpp [v0.9.0 服务文档](https://github.com/ggml-org/llama.cpp/blob/v0.9.0/tools/server/README.md) 对应的官方 b12110 arm64 产物，摘要与实际版本已验证。模型生成、取消、卸载与峰值仍待实机资源条件满足。
+The engine uses the official b12110 arm64 artifact corresponding to the llama.cpp [v0.9.0 server documentation](https://github.com/ggml-org/llama.cpp/blob/v0.9.0/tools/server/README.md). Artifact digest and executable version are verified. Native generation, cancellation, unloading, and peak memory require suitable host conditions.
 
-首轮探测提案为上下文 2048、单模型、单生成、每次最多输出 128 tokens；公开接口的拟议上限仍为 512。使用短输入检查有效响应、流式分片、取消和清理，不以模型答案质量作为资源控制通过的条件。
+Initial probes use context 2048, one model, one execution, and at most 128 output tokens. The public cap is 512. Short inputs validate response, streaming, cancellation, and cleanup; answer quality is outside lifecycle acceptance.
 
-## 3. 模块与状态边界
+## 3. Modules and state
 
-| 位置 | 职责 | 当前状态 |
+| Location | Responsibility | Status |
 | --- | --- | --- |
-| `cmd/gateway/` | 配置启动、依赖装配与进程退出，唯一连接具体适配器的入口 | 已实现并启动验证 |
-| `internal/domain/` | 平台无关的观测、模型/实例/执行身份、输出事件与释放证据 | 已有基础值与证据范围检查 |
-| `internal/application/api/` | 入站用例契约，供 HTTP 等入口调用 | 查询、生成与状态契约已实现 |
-| `internal/application/ports/` | 出站消费方小接口；读取/采集、规则、生命周期与生成分开 | 原生实现与子进程夹具已有，真实模型验收待 T6 |
-| `internal/application/` | 用例、唯一协调器、队列、账本与时限 | 协调器、账本、预算与恢复状态已实现 |
-| `internal/policy/` | 输入显式时间的纯资源规则 | 内存及外部 CPU 规则已有，恢复窗口由协调器执行 |
-| `internal/adapter/config/` | TOML、密钥来源与配置转换 | 已实现 |
-| `internal/adapter/llamacpp/` | 引擎协议与受管进程、退出证据 | 夹具通过；模型测量待 T6 |
-| `internal/adapter/platform/` | 周期采集与发布快照 | macOS 压力、保守余量和同窗口 CPU 已实现 |
-| `internal/adapter/http/` | 鉴权、DTO、错误与 SSE，不直接访问引擎 | 已通过假引擎 HTTP 验证 |
-| `internal/adapter/observability/` | 元数据日志；完整指标输出留待后续阶段 | 已有元数据日志 |
-| `internal/adapter/fake/` | 固定快照与时钟；后续扩充受控假引擎 | 已有资源读取测试适配器 |
-| `internal/architecture/`、`cmd/archcheck/` | 依赖边界检查及反例测试 | 已实现并通过 |
-| `api/` | 机器可读协议与合成 fixture | 已有 OpenAPI 3.1.1 与校验 |
-| `examples/python/` | 实际 Python 异步调用示例 | 示例及假引擎通过；实机验收待 T6 |
+| `cmd/gateway/` | Startup, composition, process exit; connects concrete adapters | Implemented and exercised |
+| `internal/domain/` | Observations, model/instance/execution identity, output, evidence | Values and scope checks implemented |
+| `internal/application/api/` | Inbound queries and commands | Resource, generation, and status contracts implemented |
+| `internal/application/ports/` | Outbound sampling/reading, rules, lifecycle, generation | Native implementation and process fixtures; model acceptance at T6 |
+| `internal/application/` | Coordinator, queue, ledger, budgets | Implemented |
+| `internal/policy/` | Pure rules with explicit time | Memory/external CPU rules implemented; coordinator owns recovery |
+| `internal/adapter/config/` | TOML, secret sources, validated configuration | Implemented |
+| `internal/adapter/llamacpp/` | Native protocol, owned process, exit evidence | Fixtures passed; model measurement at T6 |
+| `internal/adapter/platform/` | Periodic sampling and snapshot publication | macOS pressure, conservative headroom, windowed CPU attribution implemented |
+| `internal/adapter/http/` | Auth, DTOs, errors, SSE | Live synthetic HTTP checks passed |
+| `internal/adapter/observability/` | Metadata logging | Logging implemented; full metrics output deferred |
+| `internal/adapter/fake/` | Controlled snapshots, clocks, backend | Test adapters implemented |
+| `internal/architecture/`, `cmd/archcheck/` | Dependency rules and negative tests | Implemented and passed |
+| `api/` | Machine-readable contract and fixtures | OpenAPI 3.1.1 and validation |
+| `examples/python/` | Async caller example | Synthetic path passed; native acceptance awaits T6 |
 
-引擎生命周期、资源保护状态与单个请求状态分别存储，不用一个枚举同时承担三个含义。设计草案里的 ready、constrained、reclaiming 等是对外摘要；观测接口同时提供原始状态和原因，避免将引擎加载与内存受限互相覆盖。
+Engine lifecycle, protection state, and request state have separate storage. Public summaries such as ready, constrained, and reclaiming combine those axes without discarding the underlying states and reasons.
 
-排空用于普通重配；紧急回收按 ADR-0001 执行。受管进程以所有权和启动代次识别，异步完成事件属于其原代次，不能修改已经重启的新实例状态。
+Ordinary reconfiguration drains; emergencies follow ADR-0001. Ownership and incarnation identify managed processes. A late result belongs to its original incarnation and cannot mutate a restarted instance.
 
-## 4. 按依赖执行的任务
+## 4. Task dependencies
 
-| 任务 | 主要产物 | 进入条件 | 有意义的完成检查 |
+| Task | Output | Prerequisite | Acceptance check |
 | --- | --- | --- | --- |
-| T0：架构与版本化契约 | Go 端口、依赖清单、HTTP/OpenAPI、生产演进门槛 | 用户已选择推荐方案 | 本轮已完成基础及机器校验；实际 HTTP 行为仍由 T5 验证 |
-| T1：建立最小 Go 运行入口 | 模块、配置、日志、存活接口与有界退出 | T0 确定对外范围 | 配置错误可定位；退出后不遗留自己拥有的假引擎进程 |
-| T2：调度核心与时限 | `application/coordinator.go`、`ledger.go`、`budgets.go`、请求状态与独立计时器端口 | domain/ports 基础与受控假引擎接口明确 | 并发不超发；45 秒加载不被 30 秒普通排队提前结束；迟到证据不释放新代次；所有预算不重置 |
-| T3：受管引擎监督 | 单次加载、健康检查、进程代次、协作取消与强制退出 | T1、可控假引擎 | 一个取消不误伤其他等待者；最后需求退出可清理；确认退出之前不释放实占预算 |
-| T4：macOS 资源采集与策略 | 压力初态、周期采样、CPU 归因及观测保护 | 平台事实验证与 domain/ports 类型明确；可与 T2/T3 独立开展 | 映射正确；已加载模型遇关键观测缺失也暂停新执行；已有生成保留；自身 CPU 高占用不独立限流；可选 GPU 缺失不阻塞 |
-| T5：HTTP 与流式闭环 | `adapter/http/` 的校验、入站用例衔接、错误和 SSE 映射 | T2、T3、T4 核心检查通过；handler 仅消费 application/api | 实际响应符合 OpenAPI；服务就绪与容量独立；加载/取消/中断正确，慢客户端不阻塞协调器 |
-| T6：真实小模型与预算标定 | 固定引擎、校验后的 GGUF、模型配置与测量报告 | T5 假引擎闭环通过；本机采样满足加载条件 | 实际加载、生成、取消、卸载可复现；模型峰值及控制进程开销分别记录 |
-| T7：首个调用方验收 | 可复制 Python 异步示例、依赖锁定与验证记录 | Python 已确认，T5/T6 可运行 | 验证同请求冷启动、总时限、流、取消与可解析错误；关闭自动重试，异常 EOF 不算成功 |
-| T8：日常应用对照实验 | 固定配置与资源感知策略的测量报告 | T6/T7 通过 | 同模型、上下文和应用负载对照；分别报告日常任务耗时、排队、首 token、吞吐和压力 |
+| T0: Architecture and contracts | Go ports, dependency manifest, HTTP/OpenAPI, release gates | Selected architecture and scope | Boundary and schema checks; HTTP behavior exercised in T5 |
+| T1: Minimal runtime | Entry point, config, logs, liveness, bounded exit | T0 | Locatable config errors; no owned fixture process left after shutdown |
+| T2: Scheduling and budgets | `application/coordinator.go`, `ledger.go`, `budgets.go`, request state, timing interfaces | Domain/port contracts and controlled backend | No overcommit; 45-second loading survives the 30-second queue budget; retired evidence cannot release current work; budgets persist |
+| T3: Engine supervision | Shared loading, health, incarnations, cancellation, forced exit | T1 and controlled backend | One cancelled load waiter preserves other demand; last demand cleans up; occupancy remains until confirmed release |
+| T4: macOS resources | Initial pressure, sampling, CPU attribution, observation guard | Verified platform facts and domain/ports | Correct mapping; missing required data blocks resident-model execution; active generation preserved; owned CPU alone never throttles; GPU absence tolerated |
+| T5: HTTP and streaming | Validation, inbound-use-case mapping, errors, SSE | T2-T4 core checks; handlers consume only application/api | Live OpenAPI conformance; readiness/capacity separation; loading/cancellation/interruption; slow clients do not block control |
+| T6: Native small model | Pinned engine/GGUF, profile, measurements | T5 synthetic path and safe loading conditions | Reproducible loading/generation/cancellation/unloading; model peak and controller overhead recorded separately |
+| T7: Client acceptance | Reproducible Python example, lock, results | T5/T6 runnable | Cold start, total deadline, streaming, cancellation, parseable errors; no automatic retries; EOF cannot imply success |
+| T8: Application comparison | Fixed versus resource-aware report | T6/T7 | Same model/context/application load; task time, queue time, first token, throughput, pressure |
 
-T3 的失败保护初值为 60 秒窗口最多 3 次失败启动，前两次分别退避 1/2 秒；当前请求在首次失败后结束，只有后续有效需求可触发允许的下一次加载。第三次失败进入需要显式恢复的故障状态，首版以重启网关恢复；正常空闲卸载、用户取消和资源紧急回收不计作后端故障。具体初值在假引擎验证后由实机记录调整，不在当前请求中隐式循环重试。
+Initial startup-failure protection allows three failed starts within 60 seconds, with 1/2-second backoffs after the first two. A failed request ends after its first attempt; later valid demand can initiate another allowed load. The third failure requires explicit recovery, initially a gateway restart. Idle unloading, user cancellation, and emergency reclamation do not count as backend failures. Calibrate these values after fixture and hardware checks.
 
-T2/T3/T4 有明确接口后可以独立开发；这里的依赖关系不表示已经委派并行工作。
+T2/T3/T4 can be developed independently once their interfaces are fixed.
 
-### 首轮可控原型的工作包
+### Prototype sequence
 
-1. T0 已形成版本化 HTTP/OpenAPI、Go 端口与依赖门槛。模块路径为 `github.com/AtomsH4/adaptive-ai-gateway`，对应已授权的公开仓库目标。
-2. T1 接着创建 `cmd/gateway/`，在 `adapter/config/` 解析并校验 TOML，在 `adapter/observability/` 处理日志；组合入口注入对象，不在业务包中读取环境变量或调用进程。配置依赖在引入时锁定，假引擎模式不需要模型或云端密钥。
-3. T2/T3 先通过假引擎覆盖单执行槽位、四个等待名额、一次共享加载、累计时限、取消确认和迟到事件；不以真实模型速度决定这些测试能否通过。
-4. T4 先做只读平台采集与 fixture 策略测试，再由 T5 接入 HTTP。观测恢复、加载等待和总时限的组合必须验证没有重复计时或重置预算。
+1. Establish HTTP/OpenAPI, Go ports, and import rules. Module path: `github.com/AtomsH4/adaptive-ai-gateway`.
+2. Wire `cmd/gateway/`, TOML validation in `adapter/config/`, and logging in `adapter/observability/`. Keep environment reads and process operations outside business packages. Pin configuration dependencies. Synthetic mode needs no model or cloud key.
+3. Use the fake backend for one slot, four waiters, one shared load, cumulative deadlines, cancellation confirmation, and late results. Model speed must not determine these tests.
+4. Add read-only platform sampling and policy fixtures, then HTTP integration. Check recovery/loading/total-budget combinations for duplicate charging or deadline resets.
 
-每个包完成后运行行为检查、`make check` 与相应客户端检查。当前已有调度、假引擎 HTTP 和真实子进程夹具的证据，不能替代 T6 的真实模型验收。
+Run relevant behavior checks, `make check`, and client checks after each package. Synthetic HTTP and child-process evidence remain distinct from T6 measurements.
 
-### 完成与回退规则
+### Completion and rollback
 
-- 一个工作包只有在实现、测试与当前状态文档一致时完成；接口声明或假引擎结果不算真实后端通过。
-- 一个包的失败应停在其门槛并修正该模块；不通过跨层调用具体引擎、扩大未知容量或关闭关键保护来让测试通过。
-- 配置采用不可变版本；影响实例的改变建立新代次。尚无持久化恢复能力时，重启不会自动续跑旧请求。
-- 若某一后端不能确认取消，声明对应能力不可用；对受管实例可按清理策略停止并验证退出，对外接实例保持未知占用直至得到证据。
-- 生产演进中的 journal、远程 Worker、HA 与团队治理采用 [独立阶段门槛](../architecture/production-evolution.md)，不混入首轮可控原型。
+- Accept a task when implementation, tests, and status records agree.
+- Fix a failed module at its gate. Preserve layer boundaries, unknown occupancy, and required guards.
+- Use immutable configuration versions and new incarnations for instance changes. Before durable recovery exists, restart does not resume old requests.
+- Declare unsupported cancellation capabilities. Managed instances can be stopped with exit confirmation; attached occupancy stays unknown until evidence arrives.
+- Journals, remote workers, HA, and team operations follow [separate release gates](../architecture/production-evolution.md).
 
-## 5. 资源记账的首版简化
+## 5. Initial resource accounting
 
-首版一个模型、一个执行槽位。把模型加载预留、模型常驻状态和执行槽位分开，执行槽位不自动等于又预留了一整份模型内存。
+Track load reservation, model residency, and execution slots separately. An execution slot does not reserve another full copy of model memory.
 
-加载前以待标定的模型高水位配置判断是否可以开始；加载期间保持该次预留，不把实时可用内存已下降的部分再次作为新分配扣减，也不并行启动第二个模型加载或生成。系统压力采样独立约束正在进行的加载。
+Check a calibrated model high-water estimate before loading. Retain that reservation during loading, without subtracting the same observed memory decrease again or starting a second load/generation. Pressure observations continue to constrain a load in progress.
 
-就绪转换时将加载中的预留转换为同一模型的常驻状态；不叠加为两份容量。取消连接不代表执行或内存已释放；确认任务结束后释放执行槽位，确认卸载或进程退出后才清除模型占用。预算估计不承诺阻止其他应用随后分配内存。
+On readiness, convert the load reservation to resident state for the same model. Release execution occupancy after confirmed completion and model occupancy after confirmed unload/exit. Other applications can allocate memory after admission, so the estimate includes headroom without guaranteeing every future allocation.
 
-若没有足够证据形成可信的模型预算，先完成开发侧独立标定；不把一次短请求或 GGUF 文件长度当作整个模型的内存上限。未知模型的通用自动预算不并入这次单模型交付。
+If the model budget is unproven, calibrate it independently. One short request or GGUF length does not establish a memory upper bound. General automatic budgeting for unknown models is outside this single-model release.
 
-观测保护只阻止新分配，不直接清空常驻模型或提前释放 reservation。失效期间已开始的加载仍保留原截止点；确认完成后也须等可靠观测恢复才能开始生成。连续两次新鲜 normal 是恢复实验初值，仍须满足模型预算与其他保护条件。已有 critical 触发的紧急回收不被之后的未知状态覆盖。
+Observation guard blocks new allocation while retaining resident state and reservations. Existing loading keeps its original deadline; generation waits for required observations to recover. Two fresh normal samples are the initial recovery criterion, alongside budgets and other guards. Previously triggered critical reclamation retains priority if later samples become unknown.
 
-## 6. 已核实的平台细节
+## 6. Platform mapping
 
-本机只读查询 `kern.memorystatus_vm_pressure_level` 成功，单次返回 2。本机 SDK 的 dispatch 压力标志与 Apple [XNU 转换及 sysctl 实现](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_memorystatus_notify.c) 表明：这个 sysctl 导出用户态压力标志，不能直接套用内核内部枚举。
+A read-only query of `kern.memorystatus_vm_pressure_level` returned 2. The installed SDK's dispatch flags and Apple's [XNU conversion/sysctl implementation](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_memorystatus_notify.c) identify exported user-space flags rather than internal enum values.
 
-| sysctl 用户态值 | 归一化结果 |
+| Exported value | Normalized value |
 | --- | --- |
 | 1 | normal |
 | 2 | warning |
 | 4 | critical |
-| 查询失败或其他值 | unavailable，保留原始值供诊断 |
+| Query failure or other value | unavailable; retain raw values for diagnostics |
 
-本次结果仅是一次观测，不是持续压力诊断。每次运行重新采集；SDK 宏值、XNU 源文件指纹及来源记录见研究索引。该 sysctl 在所读 XNU 中标为 masked，因此应隔离为平台适配器，遇到不可用或语义不符时明确失败，不把它当作跨版本的通用保证。
+This is a sample and interface check, not continuous pressure measurement. Resample on each run. The source marks this sysctl masked, so keep it inside the platform adapter and fail explicitly if unavailable or inconsistent across OS versions. SDK values and source fingerprints are in the research index.
 
-## 7. Python 调用方实施提案
+## 7. Python client
 
-Python 示例已在 `examples/python/` 实现；解释器为 3.12.13，HTTPX 为 0.28.1，完整依赖与哈希已锁定。以下为其契约与剩余验收范围：
+`examples/python/` uses Python 3.12.13 and [HTTPX 0.28.1](https://pypi.org/project/httpx/0.28.1/) with a complete hash lock. `asyncio.timeout` requires Python 3.11+; the system Python 3.9.6 is outside this example's baseline.
 
-- 使用独立的 Python 3.11+ 环境，实施时锁定具体解释器版本；本机系统 Python 3.9.6 不作为这份异步示例的运行基线。
-- 候选依赖为 PyPI 当前列出的 [HTTPX 0.28.1](https://pypi.org/project/httpx/0.28.1/)。使用 [AsyncClient 与流式上下文](https://www.python-httpx.org/async/) 关闭响应连接，不开发独立 SDK，也不把脚本通过解释为所有第三方 SDK 通过。
-- 外层采用 [asyncio.timeout](https://docs.python.org/3.11/library/asyncio-task.html#asyncio.timeout) 约束整个调用，实验值 300 秒。HTTPX 的 [网络超时](https://www.python-httpx.org/advanced/timeouts/) 分开配置，初值为连接 5 秒、写入 10 秒、连接池等待 5 秒、读取 300 秒；读取等待按数据块计时，不能替代外层总时限。
-- 使用显式的异步 transport，按 [transport 重试配置](https://www.python-httpx.org/advanced/transports/) 关闭连接重试；示例不增加针对失败状态或流中断的自动重试循环。
-- 总时限、主动取消或键盘中断时，关闭流和连接并传播取消，不吞掉取消后继续等待。网关能否确认引擎停止仍按服务端 reservation 规则验证，客户端关闭不算资源已经释放。
-- 根据受支持协议的正常终止标记判断完成。流中错误、异常 EOF 和网络异常以失败结束，保留请求 ID、原因与不完整状态；已收到内容不当作完整成功结果。输出上限导致的正常终止保留原始 finish reason。
-- 未来检查文件计划放在 `examples/python/`：覆盖普通请求、流式请求和取消路径。测试 fixture 覆盖 45 秒模拟加载、取消关闭、分片边界、有效终止、错误事件和无终止标记的断流。测试时间通过受控服务端或可控时钟缩短，实际总等待再由实机报告记录。
+- Use [AsyncClient and context-managed streaming](https://www.python-httpx.org/async/) to close responses. This example is the initial client, not a general SDK compatibility claim.
+- Apply a 300-second outer [asyncio timeout](https://docs.python.org/3.11/library/asyncio-task.html#asyncio.timeout). Configure [network limits](https://www.python-httpx.org/advanced/timeouts/) separately: connect 5 seconds, write 10, pool wait 5, read 300. Read limits apply to waiting for a data chunk, not the entire call.
+- Set the asynchronous [transport](https://www.python-httpx.org/advanced/transports/) to zero connection retries. Add no status-code or interrupted-stream retry loop.
+- On deadline, cancellation, or keyboard interruption, close the stream/connection and propagate cancellation. Server-side release still requires evidence.
+- Require normal termination markers. Stream errors, unexpected EOF, and network failures retain request ID/reason/partial state and fail the call. Normal output limits retain their finish reason.
+- Client acceptance includes ordinary/streaming/cancel paths, simulated 45-second loading, fragment boundaries, valid endings, explicit errors, and unterminated EOF. Controlled services or clocks can shorten tests; record actual waiting separately on hardware. Implemented and pending cases are identified in the runtime report.
 
-这些是调用方工程细节，不改变用户已确认的同请求冷启动与紧急回收原则。首版客户端检查通过之后，才按实际需要增加第三方 SDK 兼容验证。
+Test third-party SDKs separately when required. Same-request cold starts and emergency interruption retain the same contracts for every client.
 
-## 8. 检查与实测的界限
+## 8. Verification and measurements
 
-已运行 `make check` 与客户端检查，并对实际假引擎 HTTP 和真实子进程夹具验证控制路径。真实模型取消、卸载、峰值及日常应用影响仍待 T6–T8，证据分别报告。
+`make check`, client tests, live synthetic HTTP, and real-child fixtures cover their recorded control paths. Native cancellation, unloading, peaks, and application impact remain T6-T8 work.
 
-关键压力路径通过可控时钟、假引擎和测试用 telemetry fixture 覆盖。故障注入只存在于测试路径；不为验证紧急回收而故意制造本机真实内存耗尽，也不暴露可伪造系统压力的默认管理接口。
+Use controlled clocks, fake engines, and test-only telemetry for pressure injection. Keep injection out of default administrative endpoints and avoid exhausting real host memory to test reclamation.
 
-真实运行报告至少记录模型修订和文件校验、引擎实际版本、输入与输出 token 数、上下文、CPU/GPU 路径、初始压力、冷启动、排队、首 token、生成耗时及卸载后状态。小模型完整流程通过后再提高模型规模或上下文；每次只改变明确的实验变量。
+A native report records model revision/digest, actual engine version, input/output tokens, context, CPU/GPU path, starting pressure, cold start, queue time, first token, execution duration, and post-unload state. Complete the small-model lifecycle before increasing model size or context, changing one experimental variable at a time.
 
-## 9. 当前状态与实施入口
+## 9. Current acceptance status
 
-T0–T5 已有实现与当前路径的验证，T7 在假引擎上通过。T6 的真实加载被当前本机 warning/余量门槛阻止；下一步是资源条件满足后的模型闭环、T7 实机验收及 T8 应用对照。
+T0-T5 have implementations and recorded-path validation. T7 passed on the synthetic backend. Warning pressure and insufficient headroom blocked the recorded T6 load. Remaining work is the native lifecycle, Python native acceptance, and application comparison.
 
-平台采集兼容性、引擎取消完成证据、模型内存峰值与日常应用的改善幅度仍需通过上述任务获得证据。若某项验证失败，修正相应工程实现或实验参数并记录原因；不把测试未通过包装成产品取舍已经实现，也不自动扩大到多机、工具调用或云端回退。
+Platform compatibility, backend evidence, memory peaks, and responsiveness require their own results. A failed measurement leads to an implementation or calibration fix, without silently expanding scope into multiple hosts, tool calls, or cloud fallback.

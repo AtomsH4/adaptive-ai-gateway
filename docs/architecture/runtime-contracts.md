@@ -1,76 +1,84 @@
-# 状态、并发与端口契约
+# State, concurrency, and port contracts
 
-修订：2026-11-09。这里定义调度实现的行为。协调器、假引擎、原生适配器和 HTTP 已有代码与测试；真实模型的运行验收仍以单独报告为准。
+Updated 2026-11-09. The coordinator, fake backend, native adapter, and HTTP layer have implementations and tests. Real-model acceptance is recorded separately in the runtime report.
 
-## 1. 状态与所有者
+## 1. State ownership
 
-| 状态轴 | 权威所有者 | 示例状态 | 其他模块的权限 |
+| State axis | Authority | Example states | Other modules |
 | --- | --- | --- | --- |
-| 引擎生命周期 | 应用协调器；适配器提供事实 | unloaded / loading / ready / draining / stopping / failed / unknown | 只能发送匹配代次的观察与证据 |
-| 资源保护 | 应用协调器 | normal / constrained / observation_guard / reclaiming / recovering | 规则只产生信号；采集器只产生观测 |
-| 执行占用 | 同一个容量账本 | reserved / dispatching / running / cancel_requested / unknown / released | HTTP 断开不能直接修改 |
-| 对调用方的响应 | 请求用例与输出边界 | waiting / streaming / succeeded / failed / disconnected | 完整输出不能反向推断容量已释放 |
+| Engine lifecycle | Application coordinator, informed by adapter observations | unloaded / loading / ready / draining / stopping / failed / unknown | Report observations and evidence for the matching incarnation |
+| Resource protection | Application coordinator | normal / constrained / observation_guard / reclaiming / recovering | Rules produce signals; samplers produce observations |
+| Execution occupancy | The same capacity ledger | reserved / dispatching / running / cancel_requested / unknown / released | HTTP disconnects carry no release authority |
+| Caller response | Request use case and output boundary | waiting / streaming / succeeded / failed / disconnected | Output completion carries no capacity-release authority |
 
-API 状态是这些轴的投影。一次流可能已经失败，但引擎仍在运行；一个模型可能已加载，但关键观测不可用，因此不能开始新生成。不要用单个状态枚举掩盖这种组合。
+API state is a projection of these axes. A failed stream can coexist with a running engine. A resident model can coexist with an observation guard. Keep these combinations representable.
 
-## 2. 身份与证据
+## 2. Identity and evidence
 
-`ModelRef` 固定模型 ID、修订与权重摘要；`RuntimeProfileRef` 独立引用不可变的服务配置，调节 GPU 层数或线程不改变权重身份。`InstanceRef` 包含实例 ID 与递增代次，不能等同于 PID。实例 ID 的生产实现必须包含新的运行所有者身份，跨网关重启不能让旧实例与新实例发生标识别名。
+`ModelRef` identifies model ID, revision, and artifact digest. `RuntimeProfileRef` independently identifies immutable serving configuration. Changing GPU layers or threads does not change weight identity.
 
-协调器的逻辑模型状态与适配器的物理 `InstanceObservation` 不使用同一个枚举：例如 unloaded 表示尚无实例，实例退出事实则由协调器结合是否预期退出判断为可再次加载或后端故障。
+`InstanceRef` identifies an instance and its increasing incarnation. Production instance IDs must include a new runtime-owner identity after a gateway restart, preventing aliases between old and new instances. A PID alone is insufficient.
 
-`ExecutionRef` 绑定实例与一次执行 ID。每个出站命令在发生副作用之前先有这些身份，返回的消息必须核对。已退休代次的输出、加载完成或退出消息不能释放新代次的资源。
+Logical lifecycle state and physical `InstanceObservation` use different enums. For example, unloaded means there is no instance; the coordinator interprets an observed exit according to whether that exit was expected.
 
-可释放证据只有：执行确认完成、取消确认完成、对应实例确认退出。取消请求已发送、客户端连接关闭、读取超时、心跳中断、租约过期都不是完成证据。`ReleaseEvidence.ConfirmsExecution` 已校验引用范围；证据真实性仍由可信适配器及真实后端测试保证，见 [ADR-0003](../adr/0003-output-and-resource-completion.md)。
+`ExecutionRef` binds an execution ID to its instance. Commands receive identities before effects occur. Late output, load completion, or exit evidence from a retired incarnation cannot release current capacity.
 
-## 3. 出站接口的最小语义
+Release requires confirmed execution completion, confirmed cancellation completion, or confirmed exit of the corresponding instance. Cancellation requests, closed sockets, read timeouts, lost heartbeats, and expired leases leave occupancy unresolved. `ReleaseEvidence.ConfirmsExecution` checks scope; the adapter and backend tests establish the evidence's validity. See [ADR-0003](../adr/0003-output-and-resource-completion.md).
 
-| 接口 | 消费方 | 完成与取消边界 |
+## 3. Outbound port semantics
+
+| Interface | Consumer | Completion and cancellation contract |
 | --- | --- | --- |
-| `ResourceSampler` | 周期采集工作 | 采样失败将相应字段标为不可用；不触发业务动作 |
-| `ResourceReader` | 诊断与只读用例 | 读取最新已发布快照；不启动新 OS 探测 |
-| `SignalEvaluator` | 协调器或只读分类用例 | 纯函数，输入含显式时间；不授予执行资格 |
-| `Clock` | 分类用例与协调器 | 提供显式时间；当前 20 ms 唤醒仅推动循环，业务期限全部按注入时钟累计，测试可推进时间 |
-| `ModelLifecycle` | 模型生命周期用例 | Load/Stop 的错误或取消不证明副作用从未发生；保留未知占用并继续核实 |
-| `Generator` | 获准后的执行工作 | Begin 有结果不明的可能；通过执行引用观察和对账，不自行重试 |
-| `GenerationRun` | 流转发与执行监督 | Next 提供语义输出；Cancel 只发出取消请求；AwaitRelease 独立提供释放证据 |
+| `ResourceSampler` | Periodic collector | Failed fields become unavailable; collection performs no business action |
+| `ResourceReader` | Diagnostics and read-only use cases | Returns the latest published snapshot without a new OS probe |
+| `SignalEvaluator` | Coordinator or assessment use case | Pure function with explicit time; returns no execution grant |
+| `Clock` | Assessment and coordinator | Supplies explicit time; the 20 ms wake-up advances the loop while business deadlines use the injected clock |
+| `ModelLifecycle` | Lifecycle use cases | A Load/Stop error or cancellation can leave an ambiguous effect; retain occupancy and reconcile |
+| `Generator` | Admitted execution work | Begin can have an ambiguous outcome; observe by execution reference instead of retrying |
+| `GenerationRun` | Output forwarding and supervision | Next yields semantic output; Cancel requests cancellation; AwaitRelease supplies separate release evidence |
 
-这些出站接口定义位于 `internal/application/ports/`。入站用例契约单独放在 `internal/application/api/`，HTTP 只能导入后者，不能导入出站端口或应用实现。真实后端只在组合入口连接，入站 handler 不获得 `ModelLifecycle`、`Generator` 或进程所有权。适配器若不能满足某项语义，能力声明为 false，使用相应功能的配置在启动或能力检查阶段明确拒绝。
+Outbound interfaces live in `internal/application/ports/`. Inbound use cases live in `internal/application/api/`, which HTTP may import. Only the composition root connects concrete backends. Handlers receive no `ModelLifecycle`, `Generator`, or process ownership.
 
-## 4. 并发与出站任务
+An unsupported contract has a false capability value. Configuration requiring it is rejected during startup or capability checks.
 
-首版一个模型、一个执行槽位、四个未执行请求。只有协调器可以把等待项变成 reservation。诊断建议、健康检查与 HTTP 200 都不是 reservation。
+## 4. Concurrency and outbound work
 
-协调器在一个串行命令循环中修改账本，阻塞 IO 在有界工作中完成。控制消息和输出数据分开；输出通道不能反向阻塞取消、压力、超时或清理。未来输出通道初值为每请求不超过 16 条事件且总缓冲不超过 64 KiB，超限按慢调用方处理并传播取消；这些值需由 T5 测量。
+The initial configuration has one model, one execution slot, and four unexecuted requests. Only the coordinator can convert a waiting request into a reservation.
 
-每个出站操作有操作身份、实例代次与完成归属；“已验证尚未发送的任务”可以撤销，而一旦调用端口产生结果不明，不能仅凭返回 error 就撤销占用。Begin 出错也可能需要 ObserveExecution 或退出当前受管实例来完成对账。
+A serial command loop owns the ledger. Blocking I/O runs in bounded work outside the loop. Control messages and output data use separate paths so output backpressure cannot stall cancellation, pressure handling, deadlines, or cleanup.
 
-重复证据对已释放条目不产生第二次释放。未知占用不因 TTL 或日志清理被遗忘。首版收到取消后即使响应已关闭，也由独立的监督上下文继续清理；不得把监督生命周期绑定到第一个 HTTP 等待者。
+The per-request output buffer is limited to 16 events and 64 KiB. Exceeding either limit cancels the slow caller. T5 measurements must validate these initial limits.
 
-## 5. 共享加载与时间预算
+Each operation has an identity, incarnation, and completion owner. Work proven not to have been dispatched can be withdrawn. Once a port call has an ambiguous result, an error alone cannot clear occupancy; Begin failures may require ObserveExecution or managed-instance exit.
 
-一次模型加载有独立操作与单个截止点。加入等待、一个等待者取消或保护状态切换都不延长加载期限。最后一个有效需求退出后清理无人需要的加载，但要保留内存预留直到确认清理。
+Repeated evidence cannot release an entry twice. TTL expiry and log retention do not erase unknown occupancy. Cleanup runs in a supervision context independent of the first HTTP caller and continues after its response closes.
 
-同一请求同时只属于一种计时阶段：等待正在进行的共享加载时扣加载期限；等待资源、观测恢复、执行槽位或排空时累计普通排队时间；提交执行后计执行时间。270 秒请求总限覆盖全部阶段，采样恢复和重排队不重置。
+## 5. Shared loading and budgets
 
-多个期限同时到期时优先总期限，其次共享加载期限，再按当前阻塞原因判断普通等待错误。释放资源的监督可继续超过响应时限，必须有独立的取消/退出预算，不能把“客户端已经超时”包装成“引擎已经停止”。
+A shared load has one operation identity and one deadline. Joining, cancelling one waiter, or changing protection state never extends that deadline. When the last valid demand leaves, cancel the unused load and retain its reservation until cleanup is confirmed.
 
-## 6. 资源策略优先级
+A request occupies one timing phase at a time. Waiting for an active shared load consumes its load deadline. Waiting for resources, observation recovery, a slot, or draining consumes cumulative ordinary queue time. Dispatch starts execution time. The 270-second request deadline covers all phases and survives requeuing and recovery.
 
-1. 已因有效 critical 触发的紧急回收必须保持其阶段与期限；后续失联不能清除这项事实。
-2. 当前有效 critical 触发紧急路径；宽限内获得有效非 critical 证据可撤销尚未发出的中断。
-3. 关键内存压力未知或过期进入观测保护：暂停新加载和新执行，保留在途生成及原期限。
-4. warning 或可信的外部工作负载争用进入普通保护；不把高自身 CPU 占用作为唯一原因。
-5. 连续恢复窗口、模型预算和执行槽位都满足后才授予新工作。
+When deadlines coincide, apply the request deadline first, then the shared-load deadline, then the current waiting-phase budget. Resource-release supervision can outlive the response deadline and has its own cancellation/exit budget.
 
-缺少可选 GPU 利用率不触发观测保护。把 CPU 与 GPU 共享内存重复相加、把模型文件长度当作内存峰值、或把读取失败当作正常值，均属契约违规。
+## 6. Resource-policy precedence
 
-## 7. 关闭与崩溃
+1. Preserve the phase and deadline of reclamation already triggered by valid critical pressure.
+2. Current valid critical pressure starts the emergency path. Valid noncritical evidence during grace can withdraw an interruption that has not been issued.
+3. Unknown or stale required memory pressure pauses new loads and executions; active generation retains its deadline.
+4. Warning pressure or reliable external contention applies ordinary protection. High owned CPU alone is insufficient.
+5. Grant new work only when recovery windows, memory budgets, and slot availability are satisfied.
 
-受控关闭先令服务未就绪，拒绝新命令，再在有上限的窗口内排空、取消并确认自有进程退出。首版候选窗口为排空 30 秒、协作退出 3 秒及额外清理时间；外层进程管理器应留更大窗口，不能早于应用清理期限杀掉它。
+Missing optional GPU utilization does not trigger the observation guard. Unified CPU/GPU memory uses one capacity pool. Model file size is not peak memory, and failed observations are not normal readings.
 
-进程被强制杀死时不能保证执行 finally 或清理子进程。只有内存状态的首版不得宣称自动崩溃恢复、无孤儿进程或 exactly-once 执行。可靠单机阶段需持久化最小所有权/操作 journal，启动时验证 PID 启动身份、实例代次和所有权；无法证明归属时隔离并停止新分配，不能杀掉碰巧复用了 PID 的外部进程。
+## 7. Shutdown and crashes
 
-## 8. 最低契约场景
+Controlled shutdown first marks the service unready and rejects new commands. It then drains, cancels, and confirms owned-process exit within a bounded window. Initial planning budgets are 30 seconds of draining, 3 seconds of cooperative exit, and additional cleanup time. An outer process manager must allow more time than the application needs for cleanup.
 
-最低契约场景包括并行准入、共享加载期限、最后等待者取消、输出与释放分离、旧实例证据、重复释放、观测恢复、慢客户端和关闭。当前已有协调器与真实子进程夹具测试；未支持的附加引擎在配置/能力检查时拒绝，真实模型与日常应用的证明仍见运行报告，不能从夹具结果外推。
+Forced process termination cannot guarantee finally handlers or child cleanup. The in-memory prototype has no automatic crash recovery, orphan-free guarantee, or exactly-once execution guarantee.
+
+The reliable-host stage requires a minimal ownership/operation journal and startup reconciliation using PID start identity, incarnation, and ownership. Unproven ownership is quarantined and blocks new allocation; a reused PID does not authorize termination.
+
+## 8. Required contract scenarios
+
+Cover concurrent admission, shared deadlines, last-waiter cancellation, separate output/release completion, retired-instance evidence, duplicate release, observation recovery, slow clients, and shutdown. Current evidence includes coordinator and real-child-process fixtures. Unsupported attached backends are rejected by configuration/capability checks. Real-model and application-impact evidence remains in the runtime report.

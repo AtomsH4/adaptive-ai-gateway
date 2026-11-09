@@ -1,6 +1,6 @@
-# 第三方许可
+# Third-party notices
 
-Go 运行依赖为 go-toml v2.4.3（MIT）；只在配置适配器中使用。源码未复制入仓库。其许可文本如下，分发包含该依赖的二进制时一并保留。
+go-toml v2.4.3 (MIT) is used by the configuration adapter. Its source is not vendored. Retain the following notice when distributing binaries that include it.
 
 ```text
 The MIT License (MIT)
@@ -27,4 +27,4 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-llama.cpp 引擎及 Qwen 模型独立下载，未纳入 Git 跟踪；各自的许可证与摘要记录在 docs/research/。Python 校验和调用示例依赖由各自的哈希锁文件管理，不改变上游许可。
+llama.cpp and the Qwen model are downloaded separately and are not tracked in Git. Their licenses and digests are recorded under `docs/research/`. Python validation and client dependencies have separate hash lock files and retain their upstream licenses.

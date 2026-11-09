@@ -1,6 +1,6 @@
-# Project context
+# Contributor guidance
 
-Read `README.md`, `CONTEXT.md`, `docs/architecture/overview.md`, `docs/architecture/runtime-contracts.md`, the design in `docs/superpowers/specs/`, and `ROADMAP.md` before changing behavior. Accepted decisions live in `docs/adr/`. The user has chosen the recommended baseline and asked for low coupling, extensibility and a production evolution path; do not reopen recorded choices or confuse architecture foundation tests with a running inference service.
+Read `README.md`, `CONTEXT.md`, `docs/architecture/overview.md`, `docs/architecture/runtime-contracts.md`, the design in `docs/superpowers/specs/`, and `ROADMAP.md` before changing behavior. Accepted decisions live in `docs/adr/`. Follow the accepted module boundaries and release gates. Report architecture tests, synthetic runtime checks, and real-model measurements separately.
 
 ## Product scope
 
@@ -8,10 +8,10 @@ Read `README.md`, `CONTEXT.md`, `docs/architecture/overview.md`, `docs/architect
 - Develop the first measured path on macOS arm64 with 8 GiB shared memory.
 - Prefer one Go control process and an external native inference engine.
 - Keep model identity, supported context and routing destination explicit.
-- The first real caller is the user's own script or SDK. Validate the HTTP contract and one selected client path; do not make a chat UI or a new standalone SDK a prerequisite for the first release.
-- Python is the confirmed language for the first real caller. Keep total deadlines separate from HTTP read timeouts, close streams on cancellation, and never treat unexpected EOF or partial output as successful completion.
-- Validate the complete lifecycle with a pinned small model before evaluating the user's target model. The current candidate metadata is in `docs/research/small-model-baseline.json`; metadata verification is not a successful inference run or a memory-capacity guarantee.
-- Keep research and user-facing documentation in Chinese; use English for code identifiers.
+- The first client is a Python script using HTTP. Validate the HTTP contract and one selected client path; do not make a chat UI or a new standalone SDK a prerequisite for the first release.
+- The Python client is the initial acceptance path. Keep total deadlines separate from HTTP read timeouts, close streams on cancellation, and never treat unexpected EOF or partial output as successful completion.
+- Validate the complete lifecycle with a pinned small model before evaluating the target model. The current candidate metadata is in `docs/research/small-model-baseline.json`; metadata verification is not a successful inference run or a memory-capacity guarantee.
+- Write documentation and code identifiers in English. Use direct technical prose; avoid promotional language and conversation or assistant narration.
 
 ## Resource and lifecycle invariants
 
@@ -43,7 +43,7 @@ Run `make setup-tools` once, then `make check` for relevant source or contract c
 
 Use `make setup-client check-client` for the Python path. Current runtime evidence is in `docs/reports/2026-11-09-runtime-validation.md`: fake-service and child-process fixtures passed, while actual model generation remains blocked by host memory safety conditions. Never override real telemetry or lower memory gates simply to obtain a successful demonstration. The CPU bridge's `C` import is allowed only for the platform adapter.
 
-When implementation begins, prioritize meaningful checks for admission races, cancellation, missing metrics, draining, queue expiry and streaming. Simulated scheduler tests and real model inference measurements must be reported separately.
+Prioritize meaningful checks for admission races, cancellation, missing metrics, draining, queue expiry and streaming. Simulated scheduler tests and real model inference measurements must be reported separately.
 
 Do not commit keys, model weights, machine serial numbers, platform UUIDs, raw prompts or responses. Keep model caches and local runtime state outside tracked source.
 

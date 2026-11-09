@@ -3,6 +3,6 @@ status: accepted
 date: 2026-11-09
 ---
 
-# 输出完成与资源完成使用不同证据
+# Separate output completion from resource completion
 
-HTTP 断开或流式错误并不证明引擎停止计算，因此生成事件与资源释放证据使用分离的端口，并绑定实例代次和执行身份。应用账本只有在匹配的执行完成、取消完成或实例退出得到确认后释放容量，不把超时、心跳丢失或租约到期当作证明。这个取舍可能暂时牺牲可用性并触发受管实例清理，但避免旧请求仍在运行时将同一容量再次授予新请求；接口返回值必须保留这项区别，不能被后端替换时的简化实现消除。
+An HTTP disconnect or stream error does not establish that the engine stopped computing. Use separate interfaces for generation events and release evidence, bound to an instance incarnation and execution identity. The ledger releases capacity only after matching execution completion, cancellation completion, or instance exit is confirmed. Timeouts, missing heartbeats, and expired leases leave occupancy unresolved. This can reduce availability and require managed-instance cleanup, but prevents the same capacity being reassigned while old work still runs. Backend implementations must preserve this distinction.

@@ -1,184 +1,182 @@
-# 个人电脑资源感知 AI 网关：首版设计草案
+# Adaptive AI Gateway: initial design
 
-初稿：2026-11-08；架构修订：2026-11-09（Asia/Shanghai）。状态：**用户已选择推荐基线，架构基础已落地，完整推理行为与工程参数待后续实现和实测**。产品取舍见 [实施审议](../../plans/2026-11-08-implementation-review.md)；模块与依赖的主依据见 [架构文档](../../architecture/overview.md)。
+Drafted: 2026-11-08. Architecture revised: 2026-11-09 (Asia/Shanghai). Status: accepted baseline with the control layer implemented; real-model validation and parameter calibration remain pending. See the [design decisions](../../plans/2026-11-08-implementation-review.md) and [module architecture](../../architecture/overview.md).
 
-## 1. 问题与首版边界
+## 1. Problem and scope
 
-本地推理与浏览器、编辑器、会议等应用争用资源。用户需要一个稳定入口，能在资源允许时接受模型请求，在资源紧张时排队或明确拒绝，并在模型空闲后释放占用。
+Local inference competes with browsers, editors and video calls for resources. A stable endpoint should admit model requests when capacity permits, queue or reject them with a clear reason under pressure, and release model memory when idle.
 
-首个独立子项目只覆盖单机、单个受管模型和一个本地引擎。输入是兼容客户端的文本聊天请求，输出为普通或 SSE 流式响应及资源决策元数据。模型需要用户预先提供；不以下载器、聊天客户端或桌面界面作为首版前提。
+The first version covers one host, one managed model and one local engine. It accepts the supported subset of text chat requests and returns JSON or SSE output with resource-decision metadata. Users provide model weights; a downloader, chat client and desktop interface are outside the initial requirements.
 
-用户已确认第一个真实调用方使用 Python。首版优先交付程序可调用的接口、可复制示例和可解析的失败原因；先以异步 HTTP 脚本验证，具体第三方 SDK 不作为交付前提，也不把编写独立 SDK 作为先决条件。Python 是调用方语言，服务端选型继续依据既有 Go 控制层方案。
+The first client is a Python script. Deliver a callable interface, reproducible examples and machine-readable errors, verified through asynchronous HTTP. A third-party SDK or a new standalone SDK is not a prerequisite. The server remains a Go control process.
 
-用户已确认模型未加载时，同一个生成请求等待有时限的冷启动，加载完成后继续生成，不要求脚本为正常加载另行轮询或重试。
+When the model is unloaded, the generation request waits for a bounded cold start, then continues on the same HTTP connection. Normal loading does not require polling or retrying the request.
 
-用户已确认首个实机目标为小模型的完整流程验证，之后再评估实际目标模型。官方固定基线现已下载并校验，见 [验证基线](../../research/small-model-baseline.json)；真实生成被当前本机资源保护阻止，不能把文件大小当作内存需求或效果保证。
+Validate the full lifecycle with a small model before evaluating the target model. The pinned official [validation baseline](../../research/small-model-baseline.json) has been downloaded and verified. Host resource protection has blocked actual generation. Artifact size is neither a memory requirement nor a quality guarantee.
 
-首版聚焦请求之间的准入、有限排队和生命周期控制。多机汇聚、企业租户、训练、云端回退和生成中的 CPU/GPU 放置迁移留待独立设计。
+The initial scope is admission between requests, bounded queuing and lifecycle control. Multiple hosts, enterprise tenancy, training, cloud fallback and CPU/GPU placement changes during generation require separate designs.
 
-## 2. 路线选择与主要组件
+## 2. Technical approach and components
 
-三条路线与取舍见 [技术路线比较](../../research/upstream-comparison.md)。推荐 Go 控制进程与独立的原生 `llama-server` / Metal 子进程。
+The [upstream comparison](../../research/upstream-comparison.md) evaluates three approaches. The selected path is a Go control process with an independent native `llama-server` / Metal child process.
 
-| 组件 | 单一职责 | 输入与输出 | 依赖 |
+| Component | Responsibility | Input and output | Dependencies |
 | --- | --- | --- | --- |
-| Gateway | HTTP 校验、语义输出编码及取消传播 | 请求 → 应用命令；携带 request ID | 仅依赖应用用例，不直接持有引擎端口 |
-| Telemetry | 采集并归一化资源观测 | 系统状态 → 带时间戳和能力标志的 snapshot | 平台采集器 |
-| Policy | 判断是否接收新的工作 | snapshot、模型状态、资源预留 → decision 与 reason codes | 显式时钟与策略配置 |
-| Application Coordinator | 唯一掌握等待、预算、容量与资源保护状态 | 命令和证据 → reservation、状态或错误 | 消费方端口与显式时钟 |
-| Engine Supervisor | 协调引擎加载、健康、排空和退出 | 期望状态 → 观察与完成证据 | 应用生命周期用例通过端口调用具体适配器 |
-| Event Recorder | 记录决策与运行统计 | 结构化事件 → 有界内存记录和日志 | 稳定的事件结构 |
+| Gateway | Validate HTTP, encode semantic output and propagate cancellation | Request → application command carrying a request ID | Application use cases; no direct engine ports |
+| Telemetry | Collect and normalize resource observations | System state → timestamped snapshot with capability flags | Platform collectors |
+| Policy | Decide whether to admit new work | Snapshot, model state and reservations → decision and reason codes | Explicit time and policy configuration |
+| Application Coordinator | Own waiting, budgets, capacity and protection state | Commands and evidence → reservations, state or errors | Consumer-owned ports and explicit time |
+| Engine Supervisor | Coordinate loading, health, draining and exit | Desired state → observations and completion evidence | Concrete adapters reached through application lifecycle ports |
+| Event Recorder | Record decisions and runtime statistics | Structured events → bounded in-memory records and logs | Stable event structures |
 
-初期配置使用 TOML，状态保存在内存并输出结构化日志，不依赖 PostgreSQL、Redis 或 NATS。历史持久化后续再评估 SQLite。上游各组件的职责分离是参考，实际模块规模按首版需求收敛。
+Use TOML configuration, in-memory state and structured logs. PostgreSQL, Redis and NATS are unnecessary for this scope. Evaluate SQLite later if persistent history is needed. Upstream responsibility boundaries inform the design; module size follows the initial requirements.
 
-## 3. 请求与控制流程
+## 3. Request and control flow
 
-1. Gateway 校验模型标识、请求体大小、截止时间和已声明的能力。
-2. 读取最近的 snapshot；按采样年龄判断有效性。
-3. 在同一原子准入路径中检查资源、已有 reservation、并发与队列容量，防止多个请求同时看到同一份空闲资源。
-4. 模型已就绪且策略允许时获得 reservation；否则进入有限队列，或返回明确原因。
-5. 模型冷启动使用单次加载协调，只允许一个加载动作。等待者加入同一个加载尝试，在原 HTTP 请求内等模型就绪再竞争执行机会；新等待者不重置加载时限，单个等待者取消不影响其他仍有需要的等待者。
-6. 获准请求转发给指定模型。客户端取消时向上游传播取消；执行 reservation 在引擎确认结束或受管进程确认退出后释放一次，不以 HTTP 连接断开直接判断计算已停止。
-7. 结束后记录排队时长、运行时长、可获得的 token 用量和决策原因。控制循环更新状态并处理空闲卸载。
+1. Validate the model identifier, body size, deadlines and declared capabilities.
+2. Read the latest snapshot and assess freshness from its collection time.
+3. Check resources, existing reservations, concurrency and queue capacity in one atomic admission path so concurrent requests cannot claim the same capacity.
+4. Grant a reservation when the model is ready and policy permits. Otherwise, enter bounded waiting or return a reason.
+5. Coordinate one shared cold-start attempt. Waiters remain on their original HTTP requests and compete for execution after loading. New waiters do not reset the load deadline; cancelling one waiter preserves a load still needed by others.
+6. Forward admitted work to the specified model and propagate client cancellation upstream. Release an execution reservation exactly once after matching engine-completion or owned-process-exit evidence. An HTTP disconnect does not prove computation has stopped.
+7. Record queue time, execution time, available token usage and decision reasons. The control loop updates state and handles idle unloading.
 
-客户端指定真实模型 ID 时，保持模型身份。若未来增加可切换质量的逻辑别名，须另设明确契约并记录实际模型。首版不会静默更换模型或缩短请求需要的上下文。
+Preserve the real model ID requested by the client. A future logical alias that permits quality changes needs an explicit contract and records of the actual model used. Do not silently substitute a model or shorten the required context.
 
-## 4. 指标与容量语义
+## 4. Metrics and capacity
 
-snapshot 至少包括采集时间、系统内存压力、可用内存估计、CPU 利用率、引擎健康、活动请求数、队列深度和各字段的 supported / unavailable / stale 状态。GPU 利用率是可选指标，不作为 macOS 首版的必需条件。
+A snapshot includes collection time, system memory pressure, estimated available memory, CPU utilization, engine health, active requests, queue depth and per-field supported / unavailable / stale status. GPU utilization is optional on the initial macOS path.
 
-用户已选择允许充分利用空闲算力。CPU 观测应区分全机利用率、受管引擎占用、本产品控制进程占用，以及其他工作负载的估计；全机利用率高但主要由本地推理自身造成时，不单独触发限流。各项采用一致的时间窗口与全机 0–100% 归一化口径。
+Allow inference to use idle compute capacity. Distinguish total CPU, managed-engine CPU, controller CPU and estimated other workload CPU. High total utilization caused mainly by inference does not independently trigger throttling. Use a consistent sampling window and a whole-machine 0–100% scale.
 
-具体进程计数与采集接口留待平台验证，以下为工程提案：其他负载可从同窗口的全机计数与自有进程计数估计，但它不是前台应用卡顿的直接测量。进程归属变化、采样不同步或数据缺失时，将归因标记为不确定，不能当作其他应用空闲。缺少可靠归因时保留首版单并发基线，不因全机 CPU 高占用直接中断生成，也不据此增加并发。对实际日常应用影响，仍需单独做代表性任务的对照测量。
+Estimate other load from whole-machine and owned-process counters over the same window. This is not a direct measurement of foreground application delay. Changes in process ownership, mismatched windows or missing data make attribution uncertain; uncertainty does not establish that other applications are idle. Retain the single-execution baseline when attribution is unreliable. Do not interrupt generation or increase concurrency based only on total CPU. Measure effects on representative everyday tasks separately.
 
-统一内存设备只使用一个物理容量基线。引擎内存估计必须考虑权重、KV 缓存、计算缓冲和进程开销，不能以模型文件大小直接代表总内存需要。加载后核验引擎实际上下文容量与配置一致；容量不足时标记加载失败，不能静默缩短客户端契约。外部应用可能在检查之后分配资源，因此准入判断是带余量的估计，不能承诺消除全部内存不足事件。
+Unified-memory hardware has one physical capacity pool. Model estimates include weights, KV cache, compute buffers and process overhead; model-file size alone is insufficient. Verify the engine's actual context capacity after loading. Insufficient capacity fails loading rather than silently narrowing the client contract. External applications may allocate memory after admission, so capacity decisions include headroom and cannot prevent every out-of-memory condition.
 
-Metal 建议工作集只作性能参考。全局 GPU 指标、引擎进程指标与框架内资源统计分别命名，避免混用。
+Treat Metal's recommended working set as performance guidance. Name global GPU metrics, engine-process metrics and framework resource statistics separately.
 
-用户已确认：关键内存压力观测不可用或过期时，暂停新生成和新模型加载；即使模型已经就绪，也不继续发放新的执行 reservation。已有生成保留，仍受其既定执行时限约束，未知本身不等于 critical。可选 GPU 利用率缺失不触发观测保护；仅 CPU 归因不确定仍按单并发基线处理。
+Missing or stale required memory-pressure observations block new generation and model loads, including execution with an already resident model. Preserve active generation under its existing deadline. Unknown pressure alone is not critical-pressure evidence. Missing optional GPU utilization does not trigger Observation Guard; uncertain CPU attribution retains the single-execution baseline.
 
-落实该取舍的工程初值与边界如下：
+Initial observation rules:
 
-- 有效采样年龄超过 6 秒记为 `telemetry_stale`；查询失败、来源不支持或值无法解释记为 `telemetry_unavailable`。不以零值、上次正常值或可用内存百分比替代可靠压力观测。
-- 已进入有界等待的请求可等待采样恢复，新请求在尚有等待容量时也可加入。等待既有共享加载期间只计算该次加载期限，不重复扣普通排队预算；其他观测恢复等待累计普通排队预算。普通预算到期而仍被关键观测阻塞时返回 503 与对应 telemetry 原因，不归为 429 排队繁忙。总时限优先，所有预算都不重置。
-- 已有在途生成不因观测缺失单独被中断；已有加载可在原加载时限内完成，但关键观测恢复前不能开始新的生成。没有有效需求时仍按既有取消清理规则处理。
-- 恢复提案为连续两次新鲜 normal 采样，再结合模型预算与普通负载条件重新准入；这是可验证初值。warning 仍按普通保护处理，新鲜 critical 立即转入紧急回收。曾因有效 critical 启动的回收流程，不因后续采样丢失而撤销其期限。
-- 观测保护使实际生成准入暂停，调度诊断返回 `can_execute_now=false`。`/readyz` 只表示应用能安全处理命令，不因临时保护或未加载模型单独失败；`/healthz` 表示进程存活。这个按需加载修订见 ADR-0004，资源诊断仍完整报告失效原因。
+- A sample older than 6 seconds is `telemetry_stale`. Query failure, unsupported sources and unmapped values are `telemetry_unavailable`. Do not replace reliable pressure observations with zero, a cached normal value or a free-memory percentage.
+- Existing waiters may await recovery, and new requests may join if waiting capacity remains. Shared-loading wait consumes only that load attempt's budget; other observation-recovery wait consumes cumulative ordinary queue time. If a required observation still blocks work when ordinary waiting expires, return 503 with its telemetry reason rather than 429. The total deadline has precedence, and no budget resets.
+- Observation failure alone does not interrupt active generation. An existing load may finish within its original deadline, but new generation waits for recovery. If demand disappears, follow the existing cancellation and cleanup rules.
+- Require two consecutive fresh normal samples, then check model budgets and ordinary load conditions before readmission. These are initial calibration values. Warning uses ordinary protection; a fresh critical sample starts emergency reclamation. Later missing data does not revoke a deadline established by valid critical evidence.
+- Observation Guard yields `can_execute_now=false`. `/readyz` indicates that the application can safely handle commands; an unloaded model or temporary protection does not itself make it unready. `/healthz` indicates process liveness. See [ADR-0004](../../adr/0004-service-readiness-and-capacity.md). Resource diagnostics retain the actual blocking reason.
 
-## 5. 控制状态与抖动抑制
+## 5. Control states and hysteresis
 
-| 状态 | 对新请求的行为 | 生命周期动作 |
+| State | New-request behavior | Lifecycle action |
 | --- | --- | --- |
-| initializing | 原请求在总时限内等待共享加载，再进入执行；加载超时返回错误 | 单次启动和健康检查；加入等待不重置加载时限 |
-| ready | 按并发、资源和 reservation 准入 | 保持当前配置 |
-| constrained | 普通争用或观测保护时有界等待；关键内存观测失效时不发放新执行 reservation | 保留在途生成，不启动额外模型 |
-| draining | 暂停发放新 reservation | 等待活动请求结束后卸载或重配 |
-| reclaiming | 停止新准入；等待队列返回资源压力错误 | 按有上限的紧急回收流程取消生成，必要时退出受管引擎 |
-| unloaded | 先检查资源，再按需冷启动 | 不保持模型内存占用 |
-| failed | 返回引擎错误并说明恢复状态 | 有界退避；不无限重启 |
+| initializing | Wait on the same request for shared loading within the total deadline, then compete for execution | One startup and health-check sequence; joining does not reset the load deadline |
+| ready | Admit subject to concurrency, resources and reservations | Retain the current configuration |
+| constrained | Bound waiting under contention or Observation Guard; issue no new execution reservation while required memory observations are invalid | Preserve active generation; do not start an additional model |
+| draining | Pause new reservations | Wait for active requests before unloading or reconfiguration |
+| reclaiming | Stop admission; end waiters with a resource-pressure error | Cancel generation through bounded emergency reclamation and terminate the owned engine if required |
+| unloaded | Check resources before demand-driven cold start | Retain no model residency |
+| failed | Return an engine error with recovery state | Use bounded backoff rather than unlimited restarts |
 
-此表是对外状态摘要。实施时分别保存引擎生命周期、资源保护状态和请求状态，避免正在加载且同时受限等情形被一个枚举覆盖。模块划分、资源记账和开发任务见 [实施计划草案](../../plans/2026-11-08-implementation-plan.md)。
+This table summarizes observable behavior. Store engine lifecycle, protection and request state separately so conditions such as loading while constrained remain representable. See the [implementation plan](../../plans/2026-11-08-implementation-plan.md) for modules, accounting and tasks.
 
-当前实现每 2 秒采样，超过 6 秒为 stale；warning 先采用立即阻止新工作、连续两次新鲜 normal 恢复的保守初值，是否放宽滞回留给模型与应用实测。CPU 只在可信外部负载达到 85% 时阻止新工作，归因不可靠时保持单并发；不把推理自身造成的全机高占用作为限制原因。
+The current implementation samples every 2 seconds and marks data stale after 6 seconds. Warning immediately blocks new work; two fresh normal samples permit recovery checks. Model and application measurements must determine whether to relax this conservative behavior. Reliable estimated external CPU load at or above 85% blocks new work. Unreliable attribution retains single execution, and inference's own high utilization is not a blocking reason.
 
-普通 CPU 争用只在有可信的其他工作负载依据时限制新工作，采用恢复窗口避免反复切换，具体阈值通过平台采集验证和应用对照测量确定。普通争用继续遵循在途请求保护，不自动套用 critical 内存压力的紧急中断。当前请求执行期间可采用的调度优先级等让出手段，需要单独核实平台能力并验证效果；仅停止新请求不能被表述为已经保证前台应用流畅。
+Ordinary CPU contention restricts new work only when supported by reliable other-workload evidence. Recovery windows prevent repeated switching; platform validation and application comparisons determine final thresholds. Preserve active requests under ordinary contention. Scheduling priorities or other ways to yield during execution require separate platform verification. Stopping new requests alone does not establish foreground responsiveness.
 
-用户已确认 critical 内存压力下日常应用优先。以下是落实该取舍的工程提案，具体时限仍需测试：
+Under confirmed critical memory pressure, everyday applications take priority. The reclamation protocol uses candidate timings that still require measurement:
 
-1. 收到新鲜且有效的 critical 观测后，立即停止新准入，拒绝新的执行请求，并使等待队列以 503 / `memory_pressure` 结束，进入 reclaiming。
-2. 没有在途生成时，直接取消未完成的模型加载或卸载空闲模型，不等待普通空闲时限。
-3. 存在在途生成时，先给出可配置的短宽限，实验初值 5 秒。宽限内收到有效的非 critical 观测时，撤销尚未开始的强制回收，转入相应的资源保护或恢复等待状态。指标过期或缺失不算压力已经恢复。
-4. 宽限结束仍无法确认压力缓解时，取消当前生成。再给出最多 3 秒的协作退出机会；引擎未确认结束则强制终止本产品拥有的引擎进程。3 秒是发起强制退出的时间预算，不保证操作系统已经在该时刻完成资源回收。
-5. 一旦实际发起取消，就完成本次回收；之后压力缓解不会把中断的请求当作成功或隐式续跑。生成结束后仍需卸载模型或退出引擎：执行 reservation 仅在确认相关工作结束或进程退出后释放，模型常驻容量仅在确认卸载或进程退出后回收；未完成的加载 reservation 也不能仅因 HTTP 取消而释放。
-6. 中断请求明确返回 `memory_pressure_interrupted`。尚未输出响应时返回 503；流已经开始时按后续确定的客户端契约报告错误并结束流，不自动重试整次请求。
-7. 回收后保持模型未加载，直到新鲜观测满足恢复条件，才允许后续请求按需启动。恢复等待实验初值为连续 30 秒内存 normal，并按后续验证的其他负载条件判断；恢复不以全机 CPU 固定低占用为必要条件。
+1. On a fresh valid critical observation, stop admission, reject new execution requests and end waiters with 503 / `memory_pressure`. Enter reclaiming.
+2. If no generation is active, cancel incomplete loading or unload the idle model immediately rather than waiting for the idle timeout.
+3. Give active generation a configurable short grace period, initially 5 seconds. A valid non-critical observation during grace withdraws reclamation that has not started and enters the appropriate protection or recovery state. Missing or stale data is not recovery evidence.
+4. If relief is not confirmed by grace expiry, cancel generation. Allow up to 3 seconds for cooperative completion, then force termination of the owned engine if completion remains unconfirmed. This budget bounds when forced exit is initiated; it does not guarantee that the OS has freed resources by that time.
+5. Once cancellation is issued, finish reclamation even if pressure improves. Do not report success or silently resume the interrupted request. Generation completion still requires model unload or process exit. Release execution reservations on matching work-completion or exit evidence, residency on unload or exit evidence, and incomplete load reservations only on confirmed cleanup.
+6. Report `memory_pressure_interrupted`: 503 before output begins, or the declared stream error after streaming starts. Do not automatically retry the call.
+7. Keep the model unloaded until fresh observations satisfy recovery conditions. The initial proposal is 30 continuous seconds of normal memory pressure plus the other validated admission requirements. Recovery does not require a fixed low total CPU utilization.
 
-上述值仅是可复现实验的初值，尚未作为本机默认值验证。CPU 高负载时切换到 CPU 推理不能视为通用降级手段；首版先减少新工作。
+These timings are reproducible experiment defaults, not measured host guarantees. Switching to CPU inference under high CPU load is not a general fallback; first reduce new work.
 
-普通配置变更，包括 GPU 层数、线程数或上下文上限，先 draining，待活动请求为零后再重启自有引擎。紧急回收是允许中断的独立路径，不把它称为排空。首版只管理自建子进程；未来接入外部服务时不拥有其退出权限。
+For ordinary GPU-layer, thread-count or context changes, drain active requests before restarting the owned engine. Emergency reclamation is a separate interruption path. The initial version manages its own child processes. A future attached external service does not grant process-termination authority.
 
-## 6. 建议接口与初始运行配置
+## 6. Interfaces and initial configuration
 
-HTTP 已实现并通过假引擎验证；真实模型路径仍待本机资源条件满足。
+HTTP behavior is implemented and verified with a synthetic backend. Real-model validation awaits safe host resource conditions.
 
-| 接口 | 用途 |
+| Endpoint | Purpose |
 | --- | --- |
-| `GET /healthz` | 控制进程存活 |
-| `GET /readyz` | 应用是否初始化并能安全处理命令；即时容量在调度诊断与生成准入中判断 |
-| `GET /v1/models` | 返回配置的真实模型标识 |
-| `POST /v1/chat/completions` | 首版支持的文本聊天请求和 SSE 流式响应 |
-| `GET /admin/resources` | 当前观测、采样年龄、缺失字段与容量估计 |
-| `GET /admin/scheduler` | 模型状态、队列、reservation 与近期决策原因 |
+| `GET /healthz` | Controller liveness |
+| `GET /readyz` | Whether initialization is complete and commands can be handled safely; request admission and diagnostics determine immediate capacity |
+| `GET /v1/models` | Configured real model identifiers |
+| `POST /v1/chat/completions` | Supported text chat requests with JSON or SSE output |
+| `GET /admin/resources` | Current observations, sample age, missing fields and capacity estimates |
+| `GET /admin/scheduler` | Model state, queue, reservations and recent decision reasons |
 
-控制进程默认监听 `127.0.0.1:8787`，受管引擎使用单独配置的 loopback 端口。工程契约提案为 `/healthz` 之外的接口统一使用同一个本地 Bearer 令牌，首版不引入多用户权限层；默认日志只包含元数据，不包含 prompt、response 或密钥。请求字段、状态码与流式终止见 [HTTP 契约草案](../../contracts/http-api.md)。
+The controller defaults to `127.0.0.1:8787`; the managed engine uses a separately configured loopback port. All endpoints except `/healthz` require the same local Bearer token. The initial version has no multi-user permission layer. Default logs contain metadata and exclude prompts, responses and keys. See the [HTTP contract](../../contracts/http-api.md) for fields, status codes and stream termination.
 
-本机实验初值：单个已加载模型、推理并发 1、未执行请求总数上限 4、空闲卸载时限 300 秒。所有等待者，包括触发冷启动的请求，均计入这个有界等待容量，不另建无限的加载等待队列。最大请求体 1 MiB，默认及允许的最大输出均为 512 tokens，请求超过上限时明确拒绝。模型与上下文容量根据最终固定的引擎版本和实测设置，不把 8 GiB 直接视为可全部使用的模型预算。
+Initial defaults are one loaded model, one active execution, at most four non-executing requests and a 300-second idle-unload timeout. Example configurations may override the idle timeout to 30 seconds. Every waiter, including the request that triggers cold start, counts toward the same bounded capacity. The body limit is 1 MiB. The default and maximum output are both 512 tokens; larger requests are rejected. Pin model and context capacity against the engine version and measured requirements rather than treating all 8 GiB as available model memory.
 
-用户确认同请求等待冷启动后，采用以下分阶段时间预算提案。具体秒数尚未实测，可配置，但时限不随状态反复转换而重新开始：
+Use separate configurable time budgets. State transitions never restart them:
 
-| 时间预算 | 实验初值 | 计时与边界 |
+| Budget | Initial value | Accounting and boundary |
 | --- | --- | --- |
-| 普通执行排队 | 累计 30 秒 | 资源准入、排空或执行槽位等待；不包含等待正在进行的共享模型加载的时间 |
-| 共享模型加载 | 单次尝试 120 秒 | 从实际启动加载计时；所有等待者共用同一截止点，后加入者只等待剩余时间 |
-| 生成执行 | 120 秒 | 从向引擎提交执行起，包含提示处理、首 token 等待与完整输出 |
-| 单个请求总时限 | 270 秒 | 从接受合法请求起覆盖全部阶段；任何阶段、重新排队或采样恢复均不重置 |
+| Ordinary execution queue | 30 seconds cumulative | Resource admission, draining and execution-slot waiting; excludes wait on an active shared model load |
+| Shared model load | 120 seconds per attempt | Starts when loading begins; all waiters share the deadline, and later arrivals receive only the remaining time |
+| Generation execution | 120 seconds | Starts at engine dispatch and includes prompt processing, first-token wait and complete output |
+| Total request | 270 seconds | Starts when a valid request is accepted and spans all phases; requeueing and observation recovery never reset it |
 
-模型冷启动等待不再计入普通 30 秒执行排队预算，因此正常加载超过 30 秒仍可在同一请求继续。等待者进入共享加载之前或模型就绪之后的普通排队时间累计计账；单个请求不因加载失败而自动进入第二轮加载或重试生成。总时限或当前阶段时限任一到期即结束等待；同时到期时优先记录总时限原因。
+A normal cold start longer than 30 seconds can therefore continue to generation on the same request. Ordinary waiting before and after loading is cumulative. A failed call does not automatically enter a second load attempt or retry generation. Expiry of the total or applicable phase budget ends waiting; simultaneous expiry records the total-timeout reason first.
 
-客户端断开随时退出等待并传播取消。若还有其他等待者需要同一次加载，继续该加载；若最后一个等待者离开且没有其他有效需求，取消无人需要的加载并清理受管进程。加载内存 reservation 在确认清理前继续保留，不因调用方离开提前释放。引擎异常后的恢复仅面向后续请求，不隐式延长已经失败的调用。
+Client disconnect removes the waiter and propagates cancellation. Preserve a shared load while another waiter needs it. When the last demand leaves, cancel the unnecessary load and clean up the owned process. Retain its load reservation until cleanup is confirmed. Engine recovery serves later requests and does not extend a failed call.
 
-在资源准入、模型加载和普通排队阶段，不提前发送成功状态或自定义“加载中”SSE 数据，以保留正常 HTTP 错误返回能力。第一笔有效生成输出之前可以保持没有响应体数据；具体 SDK 的首字节等待和总调用时限必须在集成测试中覆盖最长合法等待。示例客户端拟设 300 秒外层总时限，并使等待首字节的限制不短于服务器允许的等待，具体设置以最终选定 SDK 的实际语义验证，不能把读取超时等同于整个调用的总时限。
+Do not send success status or custom loading SSE events during admission, loading or ordinary queuing. Preserve the ability to return an ordinary HTTP error. The response may have no body data until generation begins. Integration tests must cover the longest valid wait against the selected client's first-byte and total timeouts. The example uses a 300-second outer deadline and network timeouts that permit the server's valid waiting period. A read timeout is not a total-call deadline.
 
-首版只承诺经过契约测试的 API 子集，不宣称完整兼容任意提供商。未知参数明确报错或按已记录的透传规则处理。
+Support only the API subset covered by contract tests. Unknown parameters are rejected under the current HTTP contract. Any future passthrough requires documented rules.
 
-首个客户端验收路径为原始 HTTP 加 Python 异步脚本。工程提案使用独立的 Python 3.11+ 环境与候选 HTTPX 0.28.1，实际执行时锁定解释器与依赖版本。验证普通响应、流式分片、取消、队列拒绝、加载等待和紧急中断的可观察行为。验收示例显式设置总时限和网络各阶段超时，关闭自动重试，取消时关闭响应流；不依赖图形界面弹窗表达错误。错误封装及流式结束方式需由该调用方验证，不能宣称任意 SDK 都可正确识别。
+The initial client acceptance path combines raw HTTP and an asynchronous Python script. The design proposed an isolated Python 3.11+ environment and HTTPX 0.28.1; the implementation pins the interpreter and dependencies. Verify JSON, streaming chunks, cancellation, queue rejection, loading waits and emergency interruption. Set total and network-phase timeouts explicitly, disable automatic retries and close streams on cancellation. Errors must be observable programmatically. Verify the selected client's error and stream handling rather than assuming arbitrary SDK compatibility.
 
-流已经收到部分内容时，错误或异常 EOF 必须使调用以失败结束，并保留不完整标志和已收到内容的边界；不得将其并入完整成功结果。正常达到输出 token 上限保留其正常终止原因，与资源回收中断区分。Python 依赖依据、超时配置和验证任务见 [实施计划的调用方方案](../../plans/2026-11-08-implementation-plan.md#7-python-调用方实施提案)。
+An error or unexpected EOF after partial output fails the call. Retain an incomplete marker and the boundary of received content; do not merge it into a completed result. Reaching the output-token limit is a normal finish reason, distinct from reclamation interruption. See the [Python client plan](../../plans/2026-11-08-implementation-plan.md#7-python-client) for dependencies, timeouts and checks.
 
-## 7. 错误、取消和恢复
+## 7. Errors, cancellation and recovery
 
-- 格式或不支持的请求：400；未知模型：404；超过请求体上限：413。
-- 等待容量已满：429 / `queue_full`；执行槽位或普通排空等待预算到期：429 / `queue_timeout`。Retry-After 只在有可信估计时提供。
-- 关键观测、内存或其他负载阻塞至等待预算到期：503，区分 `telemetry_unavailable`、`telemetry_stale`、`memory_pressure`、`cpu_busy` 等原因；不将关键观测失效归为普通排队繁忙。
-- 引擎不可用或加载失败：503，区分 `engine_unavailable` 与 `model_load_failed`；共享加载超过时限：504 / `model_load_timeout`。
-- 单个请求总时限到期：504 / `request_timeout`；已执行的上游响应异常：502；生成执行超过时限：504 / `execution_timeout`。流已开始后的错误按流式错误契约结束，不能再改写 HTTP 状态。
-- SSE 已输出内容后不自动重试整次请求。流错误采用已声明的流式错误语义并结束连接，防止重复内容。
-- 客户端断开时立即传播取消。引擎进程若无法响应取消，只可按已声明的整体恢复策略处理，不能误伤外部进程。执行占用直到实际结束得到确认后才释放。
-- critical 压力触发的紧急回收遵循 ADR-0001，允许中断当前生成并退出受管引擎；错误必须区分普通排队拒绝与生成中断，不静默重试。
-- 引擎崩溃使当前请求失败并释放 reservation；后续重启使用有界退避，失败次数超过配置值后保持 failed，等待显式恢复。
+- Invalid or unsupported requests: 400. Unknown model: 404. Oversized body: 413.
+- Full waiting capacity: 429 / `queue_full`. Ordinary slot or draining wait expiry: 429 / `queue_timeout`. Provide `Retry-After` only with a reliable estimate.
+- Required telemetry, memory or other-load protection that outlasts waiting: 503 with the appropriate `telemetry_unavailable`, `telemetry_stale`, `memory_pressure` or `cpu_busy` reason.
+- Unavailable engine or failed loading: 503 with `engine_unavailable` or `model_load_failed`. Shared loading expiry: 504 / `model_load_timeout`.
+- Total request expiry: 504 / `request_timeout`. Invalid upstream execution response: 502. Execution expiry: 504 / `execution_timeout`. After streaming starts, use the stream-error contract because the HTTP status is already committed.
+- Never automatically retry a call after SSE content has been emitted. Emit the declared stream error and close the connection to avoid duplicate content.
+- Propagate client cancellation promptly. If the engine ignores cancellation, follow the declared recovery strategy and affect only owned processes. Retain execution occupancy until completion is confirmed.
+- Critical-pressure reclamation follows [ADR-0001](../../adr/0001-prioritize-everyday-apps-under-critical-pressure.md). It may interrupt generation and terminate the owned engine. Distinguish admission rejection from interrupted generation, with no silent retry.
+- An engine crash fails the current request. Release reservations on confirmed exit evidence. Restart for later requests with bounded backoff; after the configured failure limit, remain failed until explicit recovery.
 
-## 8. 有意义的验证与验收目标
+## 8. Verification and acceptance
 
-先用假引擎和可控时钟验证控制逻辑，再用固定的小模型做单独标注的端到端实测。
+Verify control logic with a synthetic engine and controlled time, then run separately identified end-to-end measurements with the pinned small model.
 
-| 验证 | 验收依据 |
+| Check | Acceptance evidence |
 | --- | --- |
-| 并发准入 | 并行请求不超发 reservation，排队与模型加载没有重复动作 |
-| 客户端取消 | 队列项或上游工作及时取消；引擎忽略 HTTP 取消时不会提前重新分配执行占用；资源只释放一次 |
-| 压力与恢复 | 内存 critical 立即停止新准入；正常恢复、过期观测、宽限到期和取消开始后的恢复分别有明确结果 |
-| 空闲算力利用 | 其他负载低、内存正常、推理自身导致全机 CPU 90% 时不误触发限流；采样归因不确定时不误报空闲 |
-| 普通应用争用 | 可信的其他负载升高时限制新工作；对当前请求的影响与紧急回收区分，并单独测量实际让出效果 |
-| 紧急回收 | 忽略取消的假引擎在强制退出时间预算到期后被发起终止；进程退出确认前不释放其占用；外接进程不受影响 |
-| 缺失指标 | 已加载模型也暂停新执行；在途生成保留；恢复不重置等待预算；长期失效以正确的 503 原因结束；缺少可选 GPU 利用率仍可运行 |
-| 观测保护恢复 | 连续恢复采样、warning、critical 和原 critical 后失联分别验证；观测未知不单独触发强制中断 |
-| 排空重配 | 普通重配等待活动请求结束；只有明确的紧急回收路径允许主动中断 |
-| 队列与超时 | 满队列、等待超时、冷启动超时与执行超时分别可观测 |
-| 同请求冷启动 | 例如加载耗时 45 秒、无普通排队的请求仍可成功继续生成，不被 30 秒执行排队预算提前结束 |
-| 共享加载与取消 | 多个请求只触发一次加载；取消一个等待者不影响其他请求；最后一个需求退出时清理加载且不提前释放实占内存 |
-| 时限累计 | 反复保护、恢复、排队不重置已用预算；后加入等待者不重置共享加载时限；达到总时限后不继续为该请求生成 |
-| 流式响应 | 保留 chunk 顺序和取消语义，开始输出后无整次自动重试 |
-| 脚本与 SDK 调用 | 原始 HTTP 与选定客户端分别验证响应、流、取消和失败；显式记录客户端版本、超时及重试设置 |
-| 实机资源 | 分别测控制层和模型进程内存；控制层空闲 RSS 暂以低于 100 MiB 为设计目标，不能在未测时称已达成 |
-| 用户收益 | 同模型同上下文比较固定配置与资源感知策略，报告代表性前台任务耗时及推理体验，不预设改善比例 |
+| Concurrent admission | Parallel requests do not over-allocate reservations or duplicate queuing and loading actions |
+| Client cancellation | Remove queued work or cancel upstream promptly; an engine that ignores HTTP cancellation keeps its execution reservation until confirmed completion; release once |
+| Pressure and recovery | Critical memory immediately blocks new admission; normal recovery, stale data, grace expiry and recovery after cancellation have explicit outcomes |
+| Idle compute use | With normal memory and low other load, inference causing 90% total CPU does not trigger throttling; uncertain attribution does not report idle capacity |
+| Ordinary application contention | Reliable high other load restricts new work; effects on active requests remain distinct from emergency reclamation, and actual yielding is measured separately |
+| Emergency reclamation | Initiate termination of a cancellation-ignoring synthetic engine by the force-exit deadline; retain reservations until exit evidence; leave attached processes unaffected |
+| Missing metrics | A loaded model still pauses new execution; preserve active work; recovery does not reset budgets; persistent failure ends with the correct 503 reason; missing optional GPU utilization permits operation |
+| Observation Guard recovery | Test consecutive recovery samples, warning, critical and missing data after prior critical; unknown pressure alone never forces interruption |
+| Draining and reconfiguration | Ordinary reconfiguration waits for active work; only the emergency path permits deliberate interruption |
+| Queue and deadlines | Distinguish a full queue, ordinary wait expiry, cold-start expiry and execution expiry |
+| Same-request cold start | A 45-second load without ordinary queuing can proceed to generation without hitting the 30-second queue budget |
+| Shared loading and cancellation | Multiple requests trigger one load; one cancelled waiter preserves others; removing the last demand cleans up loading without early reservation release |
+| Cumulative deadlines | Protection, recovery and requeueing retain used budgets; later waiters do not reset shared loading; total expiry prevents further generation for that request |
+| Streaming | Preserve chunk order and cancellation, with no automatic whole-call retry after output |
+| Script and client calls | Verify responses, streams, cancellation and failures through raw HTTP and the selected client; record versions, timeouts and retry settings |
+| Host resources | Measure controller and engine memory separately; idle controller RSS below 100 MiB is a design target until measured |
+| Application benefit | Compare fixed and resource-aware operation with the same model and context; report representative foreground-task times and inference experience without a predetermined improvement percentage |
 
-## 9. 商业与发布方向
+## 9. Commercial and release direction
 
-先验证免费本地版本的用户收益。专业桌面功能和团队治理是后续产品假设，见 [价格与商业模式研究](../../research/pricing-and-business.md)。首版不引入支付、订阅校验或 token 加价系统。
+Validate the free local version's benefit first. Professional desktop features and team governance are later product hypotheses in the [pricing and business study](../../research/pricing-and-business.md). Billing, subscription checks and token markups are outside the initial version.
 
-仓库保存原创设计与实现，没有复制上游推理代码。项目许可采用 Apache-2.0，配置依赖及本机下载产物已锁定，模型遵循其独立许可；不把商业付费功能当作开源许可的一部分。
+The repository contains original design and implementation, without copied upstream inference code. It uses Apache-2.0. Configuration dependencies and downloaded validation artifacts are pinned; models retain their own licenses. Commercial product features are separate from open-source license terms.
 
-## 10. 自审记录
+## 10. Implementation status
 
-本次文档自审已核对：用户确认的场景与推荐选型分开表述；当前能力与提案分开；RAM 与 GPU 共享容量无重复计算；加载适配与生成中迁移无混用；队列、取消、排空、失败和缺失指标有明确行为；外部价格附来源；没有声称跑过推理或达成性能目标。
-
-当前已有调度、HTTP、平台与引擎适配器，并验证假引擎及子进程夹具；真实模型与日常应用检查尚未通过，见运行报告。数字阈值与模型资源峰值仍需实测证据。
+The scheduler, HTTP layer, platform collectors and engine adapter are implemented. Synthetic-backend and child-process fixtures passed. Real-model generation and everyday-application comparisons remain pending; see the [runtime report](../../reports/2026-11-09-runtime-validation.md). Thresholds and model peak-memory estimates still require measured calibration.

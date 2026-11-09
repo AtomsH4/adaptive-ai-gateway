@@ -1,32 +1,32 @@
-# 公开价格、商业模式与产品定位
+# Pricing and business models
 
-核对日期：2026-11-08（Asia/Shanghai）。金额保留来源币种；软件许可费与运行成本分别记录。下列信息没有把模型 API、硬件、电费或运维成本算成免费。
+Checked 2026-11-08 (Asia/Shanghai). Amounts retain their source currency. Software licensing, model API charges, hardware, electricity, and operations are separate costs.
 
-## 已核实的上游情况
+## Upstream snapshot
 
-| 项目 | 开源软件自托管 | 已公开的商业模式 | 价格证据与限制 |
+| Project | Open-source self-hosting | Commercial offering documented | Price evidence and scope |
 | --- | --- | --- | --- |
-| GPUStack | 开源代码为 Apache-2.0，可依其条款自行部署 | 企业版提供高可用、多租户、治理、品牌定制与支持 | [企业页面](https://gpustack.ai/enterprise/) 引导联系销售；所查页面没有可引用的固定数值报价 |
-| LiteLLM | 官方价格页列为 **US$0** 自托管开源版 | 企业版增加治理、安全和支持，按年度网关请求容量、部署架构与支持需求报价 | [官方价格页](https://www.litellm.ai/pricing) 明确按网关规模报价，不按 token 收取其企业许可费；模型供应商费用另计 |
-| LocalAI | MIT 许可的开源运行时，无须购买该开源代码的使用许可 | 官网提供商业联系入口 | [官网](https://localai.io/) 未在所查页面给出统一订阅价；不推断商业服务免费或不存在 |
-| llama.cpp | MIT 许可推理引擎，按许可使用无需购买开源代码许可 | 本轮资料未提供可核实的统一商业套餐 | 依据 [根许可证](https://github.com/ggml-org/llama.cpp/blob/master/LICENSE)；不将周边产品价格归为引擎价格 |
-| KTransformers | Apache-2.0 许可代码，按许可使用无需购买开源代码许可 | 公开仓库以异构推理和训练技术为主 | 依据 [根许可证](https://github.com/kvcache-ai/ktransformers/blob/main/LICENSE)；本轮未核实统一服务报价 |
+| GPUStack | Apache-2.0 code, subject to its terms | Enterprise HA, tenancy, governance, branding, support | The [enterprise page](https://gpustack.ai/enterprise/) directed buyers to sales; no fixed numeric price was found |
+| LiteLLM | Official pricing listed **US$0** for self-hosted OSS | Enterprise governance, security, support; annual quotes by gateway request capacity, architecture, and support needs | [Pricing](https://www.litellm.ai/pricing) described gateway-scale licensing rather than token-based enterprise licensing; provider charges are separate |
+| LocalAI | MIT runtime | Business-contact option | The checked [website](https://localai.io/) gave no uniform subscription price; commercial service availability or cost was not established |
+| llama.cpp | MIT inference engine | No common commercial package verified in this research | [Root license](https://github.com/ggml-org/llama.cpp/blob/master/LICENSE); adjacent product prices are outside the engine's license terms |
+| KTransformers | Apache-2.0 code | Repository focused on heterogeneous inference and training | [Root license](https://github.com/kvcache-ai/ktransformers/blob/main/LICENSE); no uniform service quote verified |
 
-LiteLLM 的根许可明确区分开源范围与可能存在的企业目录。官方销售页列出的功能和可分发源码的许可范围需要分别判断。
+LiteLLM's root license distinguishes the open-source scope from a possible enterprise directory. Sales-page features and distributable source-code rights require separate checks.
 
-## 对本项目的建议
+## Product hypotheses
 
-下面是产品假设，不是已经验证的市场结论或正式报价。
+These are unvalidated product options, with no committed pricing.
 
-- **基础版**：先提供免费本地自托管。核心价值是资源预算、准入决策与对日常应用的影响可见。
-- **个人专业功能**：后续验证用户是否愿为安装更新、应用场景配置、使用报告和更易用的桌面管理付费。先验证留存与节省的配置时间，再确定金额和订阅或买断方式。
-- **团队版**：在多设备需求出现后，再评估集中策略、设备管理、审计与支持等付费项。首版不引入多租户和复杂账单系统。
-- **第三方 API**：未来采用用户自己的密钥，单独展示供应商费用。任何远端回退必须显式启用。
+- **Local edition:** free self-hosting focused on resource budgets, admission decisions, and application-impact reporting.
+- **Personal paid features:** evaluate demand for installation/updates, workload profiles, reports, and desktop management. Measure retention and setup time saved before choosing a price or subscription versus perpetual licensing.
+- **Team edition:** consider central policy, device management, audit, and support when multi-device demand exists. Tenancy and billing are outside the initial release.
+- **Third-party APIs:** use caller-owned keys, show provider charges separately, and require explicit remote fallback configuration.
 
-不把本地 token 数直接换算成云端账单。本地成本应基于实际功耗、用电单价和可选的设备摊销估算；没有测量时显示成本未知。软件的售价、计算成本与云端 API 费在数据模型和界面上分别呈现。
+Estimate local cost from measured power, electricity tariffs, and optional hardware amortization. Show unknown cost when measurements are absent. Keep software price, compute cost, and provider charges separate in the data model and interface; local token counts alone do not establish a cloud bill.
 
-## 先验证的差异化
+## Validation before pricing
 
-重点验证一个用户价值：用户不用反复手调引擎，也能在日常工作期间保留合适的本地 AI 能力。
+The product question is whether resource-aware scheduling reduces manual engine tuning while preserving useful local inference during everyday work.
 
-衡量它需要在相同模型、上下文和日常应用负载下比较固定配置与资源感知策略：记录内存压力、排队时长、生成速度，以及代表性前台任务的完成时间。只有这些结果支持改善后，再决定付费功能与价格。
+Compare fixed configuration and resource-aware policy with the same model, context, and application load. Record memory pressure, queue time, generation speed, and foreground-task completion time. Use those results to assess paid features and pricing.

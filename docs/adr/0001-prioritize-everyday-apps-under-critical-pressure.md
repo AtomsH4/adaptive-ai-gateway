@@ -3,6 +3,6 @@ status: accepted
 date: 2026-11-08
 ---
 
-# 严重内存压力下优先保护日常应用
+# Prioritize everyday applications under critical memory pressure
 
-本地推理与日常应用共享电脑资源，原草案等待当前生成自然结束，可能让严重内存压力延续到 120 秒执行时限。用户已选择日常应用优先：critical 压力下立即停止新准入，经过有上限的宽限后仍无法确认压力缓解时，允许取消生成，必要时终止受管引擎，明确报告中断且不静默重试。这个取舍牺牲单次回答的完成保证，换取及时回收推理占用的能力；普通配置变更继续采用排空，具体宽限值通过实机验证调整。
+Local inference shares resources with everyday applications. Waiting for generation to finish could sustain critical pressure for the full 120-second execution budget. Under critical pressure, stop new admissions and allow a bounded grace period. If recovery cannot be confirmed, cancel generation and terminate the managed engine when necessary. Report the interruption without an automatic retry. This trades completion of an individual answer for timely reclamation. Ordinary configuration changes continue to use draining; grace values require hardware validation.

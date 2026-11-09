@@ -3,6 +3,6 @@ status: accepted
 date: 2026-11-09
 ---
 
-# 服务就绪与即时推理容量分开
+# Separate service readiness from immediate inference capacity
 
-原草案把模型已加载且能立即生成作为 readyz 条件；在按需冷启动及未来负载均衡后，这会形成没有请求可以触发加载的循环。修订为 readyz 只反映应用初始化、命令处理与关闭/故障状态，即时执行能力与资源保护原因由调度诊断和实际请求准入表达。代价是就绪服务仍可能合法返回资源 503，运维必须分别观察 API 就绪与推理可用性；关键观测失效仍阻止新的生成，不因 readyz 成功而放开保护。
+Requiring a loaded model and an available execution slot for readiness creates a cold-start deadlock behind a load balancer: an unready instance receives no request that could load its model. Make readiness describe application initialization, command handling, shutdown, and structural faults. Report immediate execution capacity and protection reasons through scheduler diagnostics and request admission. A ready service can return a resource-related 503, so operations must track API readiness and inference availability separately. Missing required observations still block new generation.

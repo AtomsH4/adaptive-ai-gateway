@@ -1,118 +1,82 @@
-# 首版实施细节审议
+# Initial design decisions
 
-初稿：2026-11-08；更新：2026-11-09（Asia/Shanghai）。状态：**七项产品取舍已确认，用户已选择推荐路线并要求加强低耦合、扩展性与生产演进；本记录归档，实施以架构主文档及计划为准**。
+Drafted 2026-11-08; archived 2026-11-09 (Asia/Shanghai). The seven product decisions below define the initial scope. Current implementation follows the architecture and implementation plan; later results are in the [runtime report](../reports/2026-11-09-runtime-validation.md).
 
-依据：[首版设计草案](../superpowers/specs/2026-11-08-adaptive-ai-gateway-design.md)、[阶段路线图](../../ROADMAP.md) 与 [领域术语](../../CONTEXT.md)。
+References: [design](../superpowers/specs/2026-11-08-adaptive-ai-gateway-design.md), [milestones](../../ROADMAP.md), [glossary](../../CONTEXT.md).
 
-## 已有依据
+## Decision sequence
 
-- 用户已确认：服务个人电脑，兼顾日常使用与本地 AI。
-- 用户已确认：严重内存压力下日常应用优先，紧急时允许中断生成；见 [ADR-0001](../adr/0001-prioritize-everyday-apps-under-critical-pressure.md)。
-- 用户已确认：内存安全预算内允许充分利用空闲算力，不因 AI 自身带来的全机 CPU 高占用单独限流。
-- 用户已确认：第一个真实使用入口是自己的脚本或 SDK，首个调用示例语言为 Python。
-- 用户已确认：模型尚未加载时，同一个生成请求等待有时限的加载完成，然后继续生成。
-- 用户已确认：先用小模型验证完整流程，再测试实际目标模型。
-- 用户已确认：关键内存压力观测失效时暂停新生成，保留在途请求，恢复可靠观测后再放行。
-- 初始仓库只有调研与设计；当前已加入 Go 架构基础、依赖检查和机器可读协议，尚无完整推理服务。
-- 本轮以草案中的 Go 控制层与原生 llama.cpp 路线作为讨论基础。
-- 草案已区分受管引擎与外接引擎的生命周期权限；上述定义整理进领域术语，不新增产品行为。
+Product trade-offs determine the public behavior; interface contracts, state, accounting, and acceptance tasks follow. Technical facts come from repository inspection, host checks, and official documentation.
 
-## 决策顺序
-
-按依赖关系先明确产品取舍，再确定接口契约、状态机、模块任务和验收依据。每次仅提出一个需要用户判断的问题；能够通过仓库、系统检查或官方文档核实的技术事实由开发侧调查。
-
-| 顺序 | 要解决的内容 | 为什么依赖前项 | 状态 |
+| Order | Decision | Dependency | Outcome |
 | --- | --- | --- | --- |
-| 1 | critical 内存压力时，日常应用与当前生成的优先级 | 决定是否允许主动中断及其对外契约 | 已确认：日常应用优先，允许紧急中断 |
-| 2 | 日常资源保护的可观察标准 | 为普通压力、CPU 忙碌与恢复条件提供依据 | 已确认空闲时充分利用原则；指标归因和让出效果待技术验证 |
-| 3 | 首个实际调用方 | 决定冷启动、排队、错误和流式契约的验证对象 | 已确认：自有脚本或 SDK |
-| 4 | 冷启动等待体验 | 决定客户端是否需要处理正常加载的重试流程 | 已确认：同一请求等待加载后继续生成 |
-| 5 | 模型、上下文与资源预算的测量方式 | 决定可行的准入估计与首轮实机边界 | 已确认小模型优先；已核对候选元数据，预算需实测 |
-| 6 | 首个示例调用方语言 | 决定示例、取消、超时与流式错误的客户端验证路径 | 已确认：Python |
-| 7 | 关键内存压力观测失效时的行为 | 决定保护不可验证时的新请求可用性 | 已确认：暂停新生成，保留在途，恢复后再放行 |
-| 8 | 准入、取消、排空及恢复的状态与记账 | 将前面取舍转化为并发和生命周期约束 | 已整理工程规则，技术证据在实施中验证 |
-| 9 | 模块边界、实施任务与验收门槛 | 依赖已明确的行为和失败语义 | T0–T8 与 HTTP 契约已形成整体审阅基线 |
+| 1 | Everyday applications versus active generation under critical pressure | Defines interruption and error semantics | Everyday applications take priority; emergency interruption is allowed |
+| 2 | Observable criteria for ordinary contention | Defines CPU attribution and recovery | Use idle capacity; validate attribution and application impact |
+| 3 | First real caller | Defines cold-start, error, and cancellation acceptance | Scripts/SDK-style programmatic calls |
+| 4 | Cold-start waiting | Defines whether normal loading needs client polling/retries | Wait and generate on the same request |
+| 5 | Model/context/budget measurement | Defines initial hardware scope and estimates | Validate a small model first; measure the budget |
+| 6 | First client language | Defines timeout, cancellation, and streaming tests | Python |
+| 7 | Missing required memory pressure | Defines availability under uncertain protection | Pause new generation, retain active work, recover from reliable observations |
+| 8 | Admission, cancellation, draining, recovery accounting | Implements the preceding choices | Explicit concurrency and lifecycle contracts |
+| 9 | Modules and acceptance gates | Depends on behavior and failures | T0-T8 plan and HTTP contract |
 
-## 从草案中发现的实施风险
+The initial architecture was a Go control process with a native llama.cpp backend. Managed and attached engines have different lifecycle authority. The glossary distinguishes those terms from admission, draining, and emergency reclamation.
 
-以下记录原草案的设计缺口及其处理进度。已确认的产品取舍与候选工程参数分别标注。
+## Risks addressed by the decisions
 
-1. **紧急资源释放的时限**：已确认日常应用优先，允许在有上限的宽限后取消生成并退出受管引擎。原本可能等待自然生成至 120 秒的规则已修订。5 秒宽限与 3 秒协作退出是实验初值，尚未验证。
-2. **CPU 指标包含推理自身负载**：用户已选择空闲时充分利用，已移除全机 CPU 85% / 65% 作为控制门槛的提案。实施需要区分受管推理与其他负载，并显示归因不确定性；首版如何让出正在执行的工作仍需技术验证，不能仅凭停止新准入宣称保证日常应用体验。
-3. **取消与资源释放的完成条件**：已补充执行记账约束，连接关闭或上游 HTTP 取消不直接释放执行占用；须确认引擎结束工作或受管进程退出。具体适配器如何获取完成证据留待技术验证。
-4. **冷启动与排队的时间契约**：用户已选择同请求等待，已将共享加载与普通排队分开计时，并补充请求总时限、加入共享加载和最后一个等待者退出的行为。秒数与具体客户端超时设置仍需集成验证。
-5. **内存观测与预留的重复计算**：模型加载前后的预算、已经驻留的模型内存与请求缓存需要分开记账，避免遗漏或重复扣减。
-6. **指标缺失的范围**：用户已确认关键内存压力观测失效时暂停新生成，即使模型已经加载。已补充有界等待、503 原因、恢复采样与既有 critical 流程的优先关系；可选 GPU 缺失不触发同一限制。
+1. **Reclamation latency:** waiting for a long generation could preserve pressure for 120 seconds. A bounded grace period followed by cancellation/managed exit replaces that rule. The 5-second grace and 3-second cooperative-exit values require hardware validation.
+2. **Owned load in total CPU:** remove the original total-CPU 85%/65% thresholds. Measure owned and external work separately, show uncertainty, and measure actual yielding effects. Stopping new work alone does not establish foreground responsiveness.
+3. **Cancellation versus release:** HTTP closure does not release execution occupancy. Require engine completion or managed-process exit, validated through the adapter.
+4. **Cold-start timing:** track shared loading separately from ordinary queuing, with a total deadline and explicit last-waiter cleanup. Validate client first-byte and overall limits.
+5. **Memory double counting:** distinguish loading, residency, execution slots, and request caches across the same physical pool.
+6. **Missing observations:** required-memory failure blocks new work even for a resident model. Define bounded waiting, 503 reasons, recovery samples, and precedence for an existing critical path. Optional GPU gaps do not apply the same guard.
 
-## 已确认的第一项取舍
+## 1. Critical memory pressure
 
-首个场景：用户正在视频会议，模型正在生成长回答，系统报告 critical 内存压力。
+Scenario: a video call is active while a model generates a long answer and the system reports critical memory pressure.
 
-用户选择：日常应用优先，紧急时允许中断生成。
+Prioritize everyday applications and permit emergency interruption. [ADR-0001](../adr/0001-prioritize-everyday-apps-under-critical-pressure.md) records the trade-off. Draining means waiting for natural completion; emergency reclamation can interrupt work. Grace, error encoding, and recovery criteria are engineering parameters to validate.
 
-已同步修改草案、README、仓库约定及路线图，并建立 ADR-0001。领域术语新增“排空”与“紧急回收”，防止把自然完成与主动中断混为同一种动作。具体宽限时间、错误封装和恢复指标继续按可验证的工程提案推进。
+## 2. Idle compute
 
-## 已确认的第二项取舍
+Scenario: memory is normal, other applications have little load, and inference accounts for system CPU usage of 90%.
 
-场景：其他应用负载很低，系统内存正常，本地推理自身使全机 CPU 达到 90%。此时应继续充分利用空闲资源，还是即使没有其他应用争用也固定限制本地 AI 占用。
+Allow inference to use the available capacity while retaining memory protection. Reduce new work when other applications need resources. Total CPU alone does not establish external contention. Process attribution, uncertainty, yielding mechanisms, and application impact require measurements.
 
-用户选择：允许充分利用空闲算力，其他应用需要资源时再让出，内存保护始终生效。
+## 3. First client
 
-已同步修改草案、README、仓库约定及路线图，并将“空闲算力”纳入领域术语。控制逻辑不再采用单独的全机 CPU 固定门槛。进程采样、其他负载归因、普通争用时的让出机制和效果是开发侧需要验证的技术事项，不作为已经实现的能力。
+Validate programmatic calls, first over raw HTTP and then through Python. Cover cold-start waits, streaming errors, and cancellation. A chat-client integration or standalone SDK is outside the initial prerequisite set. Network libraries differ in timeout, retry, and stream-error behavior, so broader SDK compatibility requires separate tests.
 
-## 已确认的第三项取舍
+## 4. Cold-start waiting
 
-首版先通过假引擎与自动化接口检查建立基础；此外需要确定第一个真实使用入口，以便验证冷启动等待、流式错误和取消行为。
+Scenario: a script sends the first request to an unloaded model, and a healthy cold start can exceed the original 30-second queue limit.
 
-用户选择：自己的脚本或 SDK。
+Keep the request open for loading and then generate, with deadlines and cancellation. Initial configurable budgets are 30 seconds of cumulative ordinary waiting, 120 seconds per shared load, 120 seconds of execution, and 270 seconds total.
 
-首版验收据此聚焦程序调用，先验证原始 HTTP，再用已确认的 Python 调用示例验证流式响应、取消和错误；不要求先做聊天客户端适配或开发独立 SDK。具体网络库和配置属于工程选型，不能据此假定所有 Python SDK 具有相同的超时、重试或流式错误行为。
+Waiters share one load deadline. Joining and state transitions do not reset it. One cancelled waiter leaves a load running for remaining demand; the last valid demand triggers cleanup.
 
-## 已确认的第四项取舍
+Required work includes explicit request phases, one load owner/deadline, bounded waiters, cancellation and critical paths, simulated loading beyond 30 seconds, late joins, and correct errors before output. Client first-byte and total timeouts require integration checks. These tasks were added to the implementation plan.
 
-场景：脚本发出第一次生成请求，模型尚未加载；正常冷启动可能超过草案原有的 30 秒排队时限。
+## 5. Small-model validation
 
-用户选择：同一个请求等待加载完成，再继续生成；设明确超时并允许取消。
+The first host has 8 GiB of memory. Validate the lifecycle with a small quantized text model before working on a target application model.
 
-已将草案中加载计入普通排队的旧规则替换为分阶段预算：普通排队累计 30 秒、共享加载单次 120 秒、生成执行 120 秒、请求总时限 270 秒，均为可配置且待实测的工程初值。等待者共享一个加载截止点，不因加入或状态转换重新计时；只有一个等待者退出时保留其他请求仍需要的加载，最后一个有效需求退出时清理无人需要的加载。
+At review time, the official Qwen2.5-0.5B-Instruct-GGUF Q4_K_M metadata and pinned Apache-2.0 license had been checked, but weights had not been downloaded. [Baseline metadata](../research/small-model-baseline.json) tracks subsequent verification. Memory, throughput, and unloading need measurements; answer quality is a separate concern.
 
-### 可据此细化的开发任务
+The plan covers modules, shared loading, state axes, accounting, sampling, native execution, and client acceptance. Host queries and XNU source established that exported pressure values 1/2/4 differ from the kernel's internal enum.
 
-1. 请求生命周期：用显式时钟维护总时限和累计排队预算，将队列、加载等待与执行阶段分别记录。
-2. 共享加载协调：为一次受管模型加载维护统一截止点、等待者与清理状态；与第一个 HTTP 请求的取消独立。
-3. 有界等待与取消：加载等待者也占用等待容量；覆盖单个取消、最后一个取消、critical 压力和加载超时。
-4. 接口与时限验证：用可控假引擎验证超过 30 秒的正常加载仍可成功、后加入请求不延长加载，以及尚未输出时返回正确状态。真实 SDK 选定后验证其首字节与总调用时限。
+## 6. Python client
 
-这些任务尚未实施，后续与整体模块计划合并。
+Use Python for the first example. The review proposed an isolated Python 3.11+ environment, pinned HTTPX, an outer request deadline, and explicit stream cleanup. HTTPX read timeouts bound waiting for a chunk rather than the entire call. Implementation and later results belong to the runtime report.
 
-## 已确认的第五项取舍
+## 7. Observation failure
 
-首台机器为 8 GiB 内存，尚未安装引擎或验证具体模型。需要确定首个实机目标是用较小量化文本模型验证资源调度闭环，还是直接围绕用户实际要使用的指定模型开发。
+Scenario: the model is resident and active generation is healthy, but required memory-pressure data is unavailable or stale. Optional GPU utilization is outside this condition.
 
-用户选择：先用小模型跑通完整流程，再测试实际目标模型。
+Pause new generation and preserve active work. Resume only after reliable recovery observations and other admission requirements are met. Waiters that outlast the existing budget receive the corresponding telemetry 503. Unknown pressure alone does not force interruption; an earlier valid critical path retains its priority.
 
-开发侧已核对官方 Qwen2.5-0.5B-Instruct-GGUF 的 Q4_K_M 文件元数据与固定修订的 Apache-2.0 许可，记录在 [验证基线](../research/small-model-baseline.json)。这里只读取元数据和许可证，没有下载权重或执行推理。实际内存、吞吐和卸载效果留待测量，不能将验证模型答案质量当作资源控制可靠性的证明。
+Ordinary waiting, shared loading, and total time remain separate budgets through recovery. The glossary names this state Observation Guard.
 
-已形成 [实施计划草案](2026-11-08-implementation-plan.md)，覆盖模块、共享加载、状态分离、内存记账、平台采集、真实引擎与客户端验收。另已通过本机只读查询和 Apple XNU 源码核实压力值映射：用户态 sysctl 的 1 / 2 / 4 不同于内核内部的压力枚举。
+## Engineering baseline
 
-## 已确认的第六项取舍
-
-用户选择：首个调用示例使用 Python。
-
-已将 Python 调用验收写入设计与实施计划。开发侧提案为独立 Python 3.11+ 环境、固定 HTTPX 版本、外层总时限和明确的连接关闭行为；官方文档已核实读取超时与总时限的区别。当前仍没有示例实现或运行结果。
-
-## 已确认的第七项取舍
-
-场景：模型已经加载，当前生成正常，但关键的系统内存压力指标暂时读不到或已经过期。可选 GPU 利用率缺失不属于本项。
-
-用户选择：暂停新生成，保留在途请求，指标恢复后再放行。
-
-已同步设计、仓库约定、README 与实施计划，并将“观测保护”纳入领域术语。关键观测长期不恢复时，等待项按既定预算返回相应 503；未知不单独触发强制中断；可选 GPU 缺失不阻塞。普通排队、等待既有加载与总时限分别计时，恢复不重置期限。
-
-## 审议收敛与整体审阅
-
-已形成相互关联的 [设计草案](../superpowers/specs/2026-11-08-adaptive-ai-gateway-design.md)、[HTTP 契约](../contracts/http-api.md) 与 [实施计划](2026-11-08-implementation-plan.md)。本轮不再把库选择、可调秒数或能通过代码与平台检查解决的事项作为用户偏好问题。
-
-此后用户明确选择按推荐方案推进，整体基线已采用，不再重复索取同一确认。该阶段形成架构、端口与机器契约；随后 HTTP、调度及平台实现和验收记录见 [运行报告](../reports/2026-11-09-runtime-validation.md)。真实模型与日常应用性能尚未通过测量；新增的真实产品取舍仍按一次一个问题确认，工程验证直接回写相关文档。
-
-后续每项决定确认后，立即更新相关设计条款与本记录；只有涉及难以逆转且存在实际取舍的决定才建立 ADR。具体时限和阈值作为待验证的配置，不记入领域术语。
+The [design](../superpowers/specs/2026-11-08-adaptive-ai-gateway-design.md), [HTTP contract](../contracts/http-api.md), and [implementation plan](2026-11-08-implementation-plan.md) form the accepted baseline. Library selection and tunable durations are engineering parameters to verify. Record material architectural trade-offs in ADRs and domain definitions in the glossary; keep measured values and implementation details in their respective specifications and reports.

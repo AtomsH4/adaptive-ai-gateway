@@ -1,16 +1,16 @@
-# 阶段路线图
+# Milestones
 
-本文件是产品里程碑，修订于 2026-11-09。已有架构基础不代表完整推理服务；首版行为见 [设计](docs/superpowers/specs/2026-11-08-adaptive-ai-gateway-design.md)，模块和生产演进见 [架构主文档](docs/architecture/overview.md)。
+Updated 2026-11-09. Behavior is defined in the [design](docs/superpowers/specs/2026-11-08-adaptive-ai-gateway-design.md); module boundaries are defined in the [architecture](docs/architecture/overview.md).
 
-| 阶段 | 结果 | 完成依据 | 当前状态 |
+| Milestone | Deliverable | Acceptance evidence | Status |
 | --- | --- | --- | --- |
-| M0：研究与建仓 | 独立本地 Git 仓库、上游比较、商业模式、本机基线与首版设计 | 文档链接和来源索引核验；初始化提交 | 已完成 |
-| M1：架构与计划 | 模块、消费方端口、API 契约、依赖约束、生产演进路径 | 用户已按推荐方案推进；架构基础及机器契约通过检查 | 本轮完成；实机能力仍未验收 |
-| M2：可控原型 | 控制进程、假引擎、资源 snapshot、有限队列和决策原因 | 准入、分阶段时间预算、共享加载、取消、缺失指标与紧急回收验证 | 已有实现与假引擎/子进程验证 |
-| M3：真实本机闭环 | 原生 llama.cpp、固定小模型、Python 调用、流式 API、空闲卸载 | 原始 HTTP 与 Python 调用方的冷启动、生成、取消和排空报告 | 产物已校验；生成被当前内存保护阻止，未验收 |
-| M4：日常使用验证 | 与浏览器、编辑器等应用并行运行 | 固定配置与资源感知策略的对照测量 | 未开始 |
-| M5：按证据扩展 | 桌面管理、更多后端或多设备中的一个独立方向 | 新需求与单独设计明确后实施 | 未开始 |
+| M0: Research and repository | Local Git repository, upstream comparison, business models, machine baseline, initial design | Source and link checks; initial commit | Complete |
+| M1: Architecture and plan | Modules, consumer-owned ports, API contract, dependency rules, production roadmap | Architecture and machine-readable contract checks | Complete; hardware capability remains subject to runtime acceptance |
+| M2: Control prototype | Control process, fake engine, resource snapshots, bounded queue, decision reasons | Admission, phase budgets, shared loading, cancellation, missing metrics, reclamation | Implemented with synthetic-backend and child-process validation |
+| M3: Native local execution | llama.cpp, pinned small model, Python client, streaming, idle unloading | Cold start, generation, cancellation, and draining over HTTP and Python | Artifacts verified; generation blocked by recorded memory conditions; acceptance pending |
+| M4: Everyday application comparison | Inference alongside browsers, editors, and representative tasks | Fixed-configuration versus resource-aware measurements | Not started |
+| M5: Further extensions | Desktop management, additional backends, or multiple devices | A separate design for a demonstrated requirement | Not started |
 
-阶段内的任务、依赖和验收检查见 [实施计划](docs/plans/2026-11-08-implementation-plan.md)。T0–T5 已有实现与当前路径的验证；T6/T7 实机闭环及 T8 尚未验收，见 [运行记录](docs/reports/2026-11-09-runtime-validation.md)。可靠单机、远程 Worker 与生产集群采用独立发布门槛。
+See the [implementation plan](docs/plans/2026-11-08-implementation-plan.md) for task dependencies. T0-T5 have implementations and validation for the recorded paths. Real-model T6/T7 and application comparison T8 remain pending; see the [runtime report](docs/reports/2026-11-09-runtime-validation.md).
 
-每个阶段保持可独立验证，模型供应商集成、团队治理和商业付费功能不并入首个可控原型。
+Reliable single-host operation, remote workers, and production clusters have separate release gates. Provider integrations, team governance, and paid features remain outside the initial prototype.

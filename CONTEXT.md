@@ -1,61 +1,61 @@
-# 个人电脑资源感知推理
+# Resource-aware inference on personal computers
 
-本语境描述个人电脑上的本地推理，以及它与日常应用之间的资源共享关系。
+This context covers local inference and its use of resources shared with everyday applications.
 
 ## Language
 
-**受管引擎（Managed Engine）**：
-本网关拥有生命周期控制权的推理服务实例。
-_Avoid_：外接引擎、任意本地模型服务
+**Managed Engine**:
+An inference service instance whose lifecycle is controlled by the gateway.
+_Avoid_: attached engine, arbitrary local model service
 
-**外接引擎（Attached Engine）**：
-本网关可使用其推理能力，但不拥有生命周期控制权的推理服务实例。
-_Avoid_：受管引擎、受管进程
+**Attached Engine**:
+An inference service instance that the gateway can call without controlling its lifecycle.
+_Avoid_: managed engine, managed process
 
-**资源准入（Resource Admission）**：
-基于电脑资源条件和既有推理占用，授予新推理工作开始执行资格的判断。
-_Avoid_：用户鉴权、模型选路
+**Resource Admission**:
+The decision to grant new inference work permission to execute, based on host resources and existing inference occupancy.
+_Avoid_: authentication, model routing
 
-**排空（Draining）**：
-推理实例停止接收新工作，并等待已接收工作自然结束的过渡阶段。
-_Avoid_：紧急回收、强制卸载
+**Draining**:
+A transition in which an inference instance stops accepting new work and lets accepted work finish naturally.
+_Avoid_: emergency reclamation, forced unloading
 
-**紧急回收（Emergency Reclamation）**：
-为缓解严重资源压力而主动结束受管推理占用的保护动作，必要时会中断正在进行的生成。
-_Avoid_：排空、无损迁移、静默重试
+**Emergency Reclamation**:
+A protective action that ends managed inference occupancy to relieve critical resource pressure, potentially interrupting active generation.
+_Avoid_: draining, lossless migration, silent retry
 
-**空闲算力（Available Compute Capacity）**：
-在满足内存安全约束和日常应用资源需求后，可供本地推理使用的计算余量。
-_Avoid_：全部物理内存、固定 CPU 配额、全机 CPU 空闲率
+**Available Compute Capacity**:
+Compute capacity that remains available to local inference after memory safety constraints and everyday application needs are met.
+_Avoid_: all physical memory, fixed CPU quota, system-wide CPU idle percentage
 
-**模型冷启动（Model Cold Start）**：
-请求的模型尚未处于可服务状态时，为满足生成需求而将其准备到可提供推理的过程。
-_Avoid_：执行排队、生成执行、后台预热
+**Model Cold Start**:
+Preparing a requested model for serving when it is not ready to handle inference.
+_Avoid_: execution queuing, generation execution, background prewarming
 
-**执行排队（Execution Queuing）**：
-生成请求等待资源准入或执行机会的阶段，不包含其等待共享模型冷启动的阶段。
-_Avoid_：模型冷启动、生成执行
+**Execution Queuing**:
+The period in which a generation request waits for resource admission or an execution opportunity, excluding a shared model cold start.
+_Avoid_: model cold start, generation execution
 
-**验证模型（Validation Model）**：
-用于验证本网关生命周期与资源控制行为的固定模型基线，其生成质量不代表实际应用目标。
-_Avoid_：目标模型、效果基线
+**Validation Model**:
+A fixed model baseline used to validate lifecycle and resource-control behavior. Its output quality does not represent the target application.
+_Avoid_: target model, quality baseline
 
-**目标模型（Target Model）**：
-用户为实际应用任务选择的模型。
-_Avoid_：验证模型
+**Target Model**:
+The model selected for an actual application task.
+_Avoid_: validation model
 
-**观测保护（Observation Guard）**：
-关键内存压力信息无法可靠判断时，暂停新推理工作而保留既有工作的资源保护状态。
-_Avoid_：紧急回收、内存正常、可选指标缺失
+**Observation Guard**:
+A protective state that pauses new inference work while preserving existing work when required memory-pressure information cannot be assessed reliably.
+_Avoid_: emergency reclamation, normal memory, missing optional metrics
 
-**推理实例（Inference Instance）**：
-承载一轮模型准备及后续生成工作、具有独立身份和资源归属的运行实体。
-_Avoid_：模型文件、单个请求、进程编号
+**Inference Instance**:
+A runtime entity with its own identity and resource ownership that prepares a model and serves subsequent generation work.
+_Avoid_: model file, individual request, process ID
 
-**完成证据（Completion Evidence）**：
-由受信执行侧确认工作结束或推理实例退出的事实，作为结束对应资源占用的依据。
-_Avoid_：取消请求、输出结束、失联
+**Completion Evidence**:
+A fact confirmed by a trusted execution side that work has ended or an inference instance has exited, used to end the corresponding resource occupancy.
+_Avoid_: cancellation request, output completion, loss of contact
 
-**资源信号（Resource Signal）**：
-从资源观测中得到的正常、压力或观测保护判断，是资源准入的依据而非执行资格本身。
-_Avoid_：资源准入、容量预留
+**Resource Signal**:
+A normal, pressure, or observation-guard classification derived from resource observations and used as input to admission.
+_Avoid_: admission grant, capacity reservation

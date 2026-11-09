@@ -1,52 +1,54 @@
-# 本机原型运行验证
+# Local prototype validation
 
-日期：2026-11-09（Asia/Shanghai）。本轮按 T1–T8 计划实现可运行原型；当前完成了控制与假引擎路径，真实模型和日常应用对照尚未通过验收。
+Recorded 2026-11-09 (Asia/Shanghai). The control and synthetic-backend paths are implemented and tested. Real-model execution and everyday application comparisons remain pending.
 
-## 1. 已实现与边界
+## 1. Implementation and acceptance status
 
-| 工作包 | 当前产物 | 当前证据与未完成项 |
+| Task | Implementation | Evidence and remaining work |
 | --- | --- | --- |
-| T1 | Go 入口、严格 TOML、令牌环境、元数据日志、loopback 服务、有界退出 | 配置反例、运行服务、SIGTERM 正常退出；自有子进程由真实进程夹具验证 |
-| T2 | 串行协调器、唯一容量账本、有界等待、共享加载、累计预算 | 并发等待容量、共享加载 45 秒模拟时间、晚加入者不重置期限、取消保留占用、观测等待及 critical 恢复测试 |
-| T3 | 受管原生引擎、实例代次、摘要核验、健康观察、独立释放监督 | 真实子进程夹具验证正常输出、取消无释放证据、匹配实例退出及拒绝其他所有者；夹具不运行模型 |
-| T4 | macOS 压力、保守内存余量与同窗口 CPU 归因 | SDK 的 Mach/libproc 计数和测试；PID 启动身份变化令归因不可靠；GPU 利用率仍为 unavailable |
-| T5 | 六个 HTTP 端点、鉴权、校验、JSON/SSE、取消、有界输出 | 实际假引擎服务通过 5 GET + 1 JSON + 1 SSE 的 schema/结束验证；请求和错误另有测试 |
-| T6 | 固定引擎/模型下载器、本机配置 | 产物长度与 SHA-256 校验成功、引擎可执行；当前加载被内存保护阻止，模型生成、峰值与卸载尚未验证 |
-| T7 | Python 3.12.13 / HTTPX 0.28.1 异步示例及哈希锁 | 普通与流式调用假引擎服务通过；终止标记、未知错误和总超时测试通过；真实模型调用待 T6 |
-| T8 | 固定配置与资源感知策略的对照门槛保留 | 未运行；不能把拒绝加载或夹具结果称为已改善日常应用体验 |
+| T1 | Go entry point, strict TOML, token environment, metadata logs, loopback server, bounded shutdown | Invalid-config cases, live server, clean SIGTERM exit; owned-child cleanup tested with a real process fixture |
+| T2 | Serial coordinator, capacity ledger, bounded waiting, shared loading, cumulative budgets | Concurrent capacity, simulated 45-second loading, shared deadline, cancellation retaining occupancy, observation waits, critical recovery |
+| T3 | Native process adapter, incarnations, digests, health observation, release supervision | Real child fixture covered output, cancellation without release proof, matching exit, foreign-owner rejection; the fixture runs no model |
+| T4 | macOS pressure, conservative memory headroom, CPU attribution over a common window | Mach/libproc counters and tests; changed PID start identity invalidates attribution; GPU utilization unavailable |
+| T5 | Six HTTP endpoints, auth, validation, JSON/SSE, cancellation, bounded output | Live synthetic service passed 5 GET + 1 JSON + 1 SSE schema/termination checks; request and error tests are separate |
+| T6 | Pinned artifact downloader and native configuration | Artifact sizes/digests and executable version verified; memory protection prevented loading, so generation, peak memory, and unloading remain unverified |
+| T7 | Python 3.12.13 / HTTPX 0.28.1 async example and hash lock | Ordinary/streaming synthetic calls, terminal markers, unknown errors, total timeout passed; real-model client acceptance awaits T6 |
+| T8 | Fixed versus resource-aware comparison criteria | Not run; no application-responsiveness improvement has been established |
 
-协调器只在自己的命令循环修改占用，阻塞工作经端口执行；业务期限使用注入时钟，命令处理前先核对过期请求。输出缓冲最多 16 条事件及 64 KiB，近期决策最多 128 条，均不记录原始 prompt/response。
+Only the coordinator changes occupancy. Blocking work runs through ports. Deadlines use the injected clock and are checked before command processing. Output is bounded by 16 events and 64 KiB per request; recent decisions are limited to 128 metadata records. Raw prompts and responses are excluded from those records.
 
-原生取消只关闭调用并请求停止，不把断开、EOF 或一次 idle 观测当作取消完成。没有明确完成协议时保留占用并退出受管子进程；确认进程退出后再释放。引擎使用独立的临时本地令牌，子进程只继承必要 OS 环境，不继承网关令牌或云端凭据。
+Native cancellation closes the call and requests a stop. Disconnects, EOF, and a single idle observation do not prove cancelled computation ended. Ambiguous work retains occupancy until owned-process exit is confirmed. The backend uses a separate temporary local token and inherits only required OS environment variables.
 
-## 2. 实际执行
+CPU process counters are converted from Mach time to nanoseconds. A Darwin regression compares the result with system `getrusage`.
 
-- `make check`：依赖边界、Go 行为/race/vet、19 JSON 与 5 SSE 合成场景。
-- `make check-client`：Python 客户端终止与取消场景。
-- `make build`：生成本机控制进程。
-- `scripts/check_live.py --model validation-model`：运行中的假引擎 HTTP 服务通过。
-- Python 示例普通/流式调用：均正常返回 `stop`；这是合成文本，未用于质量或吞吐评价。
-- 运行服务接收 SIGTERM 后退出码 0；真实子进程夹具另验证退出证据。
+## 2. Executed checks
 
-本轮最终检查结果以提交前执行为准；CI 文件只表示配置，未把本地检查写成远端运行记录。
+- `make check`: dependency rules, Go tests/race/vet, 19 JSON and 5 SSE synthetic cases.
+- `make check-client`: Python termination and cancellation cases.
+- `make build`: local control binary.
+- `scripts/check_live.py --model validation-model`: live synthetic HTTP contract checks.
+- Python ordinary and streaming calls: both returned `stop` with synthetic text.
+- SIGTERM: service exit code 0; real-child fixtures separately checked exit evidence.
 
-## 3. 实机资源门槛
+These local results were checked before the runtime commit. Remote CI is tracked through the repository's Actions records.
 
-固定基线为官方 v0.9.0 中 `nightly-tag.txt` 指向的 b12110，macOS arm64 压缩包 SHA-256 为 `4f5b8de12e0b9516658ca6a5764c6ffb3d7c659c3dd538556b1413c7b4050662`。本机 `--version` 报告 `0.9.0-dev (build 12110, commit cd959bae9)`。Qwen 权重长度 491400032 字节、摘要与固定修订一致，见 [基线元数据](../research/small-model-baseline.json)。
+## 3. Recorded host resource gate
 
-一次受控网关运行中：
+The official v0.9.0 `nightly-tag.txt` identified b12110. The macOS arm64 archive SHA-256 was `4f5b8de12e0b9516658ca6a5764c6ffb3d7c659c3dd538556b1413c7b4050662`; `--version` reported `0.9.0-dev (build 12110, commit cd959bae9)`. The 491400032-byte Qwen artifact matched its pinned digest. See the [baseline metadata](../research/small-model-baseline.json).
 
-- 新鲜内存压力为 warning；free + speculative 页估计约 178.0 MiB，低于配置的 2 GiB 加载前余量。
-- CPU 计数可读取，归因标为可靠；全机约 57.93%，本产品约 0.1093%。这是窗口样本，不是长期性能结论。
-- 服务 ready 为 true，模型 unloaded，执行数 0；生成等待约 30.012 秒后返回 `503 / memory_pressure`。
-- 网关 RSS 为 11328 KiB（约 11.1 MiB），受控退出码 0；没有为通过验证而降低保护门槛或强行加载模型。
+A controlled gateway run recorded:
 
-free + speculative 是保守估计，不等同于操作系统能回收的全部缓存，更不构成模型峰值标定。2 GiB 也不是已验证的模型上限。当前结果证明该场景下保护路径生效，不能证明本机能完成生成或保证未来负载下不会内存不足。
+- Fresh warning memory pressure and about 178.0 MiB of free + speculative pages, below the configured 2 GiB load headroom.
+- Reliable CPU attribution for that window: about 57.93% total and 0.1093% owned usage.
+- Ready service, unloaded model, zero executions; generation returned `503 / memory_pressure` after about 30.012 seconds.
+- Gateway RSS of 11328 KiB (about 11.1 MiB), followed by exit code 0. Protection thresholds remained enabled.
 
-## 4. 继续实施的条件
+Free + speculative pages are a conservative estimate, not all reclaimable cache. The 2 GiB setting is not a measured model peak. This run validates the refusal path under the recorded conditions; model execution and memory-capacity acceptance remain open.
 
-1. 在关键压力正常且余量满足配置时，按 T6 跑冷启动、实际生成、取消、空闲卸载和内存测量；先取得峰值与上下文证据再调整预算。
-2. 用 Python 示例重复真实路径，补齐 T7 的模型验收；然后执行 T8 的代表性日常应用对照。
-3. 当前配置变更需重启；多 profile 自动切换、热更新、journal 和崩溃恢复属于后续明确任务。
+## 4. Remaining acceptance work
 
-用户已创建[公开仓库 AtomsH4/adaptive-ai-gateway](https://github.com/AtomsH4/adaptive-ai-gateway)，GitHub API 已核验可见性为 public，账号与 SSH 推送认证一致。代码通过 Git 推送到 main；远端检查结果以该仓库的 Actions 记录为准，与上面的本地验证分开。
+1. With normal pressure and sufficient configured headroom, measure cold start, generation, cancellation, idle unloading, memory peaks, and context behavior. Calibrate budgets from those results.
+2. Repeat the native path with the Python example, then run the T8 application comparison.
+3. Track automatic profile selection, hot updates, journals, and crash recovery as separate future tasks. Current configuration changes require restart.
+
+Source is published at [AtomsH4/adaptive-ai-gateway](https://github.com/AtomsH4/adaptive-ai-gateway). Public visibility and SSH identity were verified, and code was pushed to `main`. Use the Actions records for remote CI results.
