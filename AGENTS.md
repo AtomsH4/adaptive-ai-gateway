@@ -45,6 +45,8 @@ Use `make setup-client check-client` for the Python path. Current runtime eviden
 
 Prioritize meaningful checks for admission races, cancellation, missing metrics, draining, queue expiry and streaming. Simulated scheduler tests and real model inference measurements must be reported separately.
 
+For evaluation and policy-performance claims, follow `docs/evaluation/README.md`, its metric definitions, scenario matrix and report template. Freeze model/profile/workload/objectives before comparisons, retain all offered demand and failure outcomes, and report missing measurements explicitly. Keep control correctness, synthetic overhead, native lifecycle and foreground benefit as separate evidence levels. Do not treat streamed chunks as tokens or publish candidate targets as measured results.
+
 Do not commit keys, model weights, machine serial numbers, platform UUIDs, raw prompts or responses. Keep model caches and local runtime state outside tracked source.
 
 ## Upstream research

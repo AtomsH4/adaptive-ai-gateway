@@ -65,6 +65,8 @@ Initial startup-failure protection allows three failed starts within 60 seconds,
 
 T2/T3/T4 can be developed independently once their interfaces are fixed.
 
+T6-T8 acceptance uses the [evaluation protocol](../evaluation/README.md), [metric definitions](../evaluation/metrics.md), [scenario matrix](../evaluation/scenarios.md) and [report template](../evaluation/report-template.md). Artifact verification, successful native execution and measured foreground benefit require separate verdicts.
+
 ### Prototype sequence
 
 1. Establish HTTP/OpenAPI, Go ports, and import rules. Module path: `github.com/AtomsH4/adaptive-ai-gateway`.

@@ -30,6 +30,8 @@ These are candidate gates to validate on the target hardware and workload:
 
 CPU/GPU throughput and capacity budgets depend on the host and model. Maintain a report for each supported configuration.
 
+Desktop policy-benefit measurements follow the [evaluation protocol](../evaluation/README.md), [scenario matrix](../evaluation/scenarios.md) and [report template](../evaluation/report-template.md). Keep correctness, synthetic cost, native lifecycle, foreground benefit and endurance verdicts separate. Its numerical desktop targets are calibration candidates, not evidence that these release gates have passed.
+
 ## 4. Reliability and persistence
 
 The in-memory queue does not survive restart. A disconnected response cannot automatically resume. Task lookup or resumable output requires an explicit protocol, retention policy, and durable state; request IDs alone provide no idempotency guarantee.

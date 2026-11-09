@@ -3,8 +3,8 @@
   "checked_on": "2026-11-08",
   "updated_on": "2026-11-09",
   "timezone": "Asia/Shanghai",
-  "scope": "Research, design, architecture and validation tooling; no upstream inference implementation vendored.",
-  "fingerprint_semantics": "git_blob_sha identifies a file's Git content object, not a repository commit or a dependency version. commit_sha pins a repository revision used by CI. Entries without checked_on retain the initial checked_on date; branch URLs and web pages may change.",
+  "scope": "Research, design, architecture, evaluation methodology and validation tooling; no upstream inference implementation vendored.",
+  "fingerprint_semantics": "git_blob_sha identifies a file's Git content object, not a repository commit or a dependency version. commit_sha pins a repository revision; github_action entries pin CI dependencies and evaluation entries pin inspected references. Entries without checked_on retain the initial checked_on date; branch URLs and web pages may change.",
   "sources": [
     {
       "id": "gpustack-gpustack-license",
@@ -360,6 +360,61 @@
       "url": "https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/kern/bsd_kern.c",
       "related_url": "https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/kern/task.c",
       "observation": "fill_task_rusage uses task_power_info totals backed by recount Mach time. Convert using mach_timebase_info before nanosecond normalization; verified locally against getrusage in the darwin/cgo regression test."
+    },
+    {
+      "id": "guidellm_metrics",
+      "repository": "vllm-project/guidellm",
+      "commit_sha": "c96aa1727995adb44d7187fba8c37146f184b13e",
+      "path": "docs/en/guides/metrics.md",
+      "git_blob_sha": "200b685d2e8bca4a78a745fd12966d835dd50576",
+      "url": "https://github.com/vllm-project/guidellm/blob/c96aa1727995adb44d7187fba8c37146f184b13e/docs/en/guides/metrics.md",
+      "checked_on": "2026-11-09",
+      "type": "github_file",
+      "observation": "Methodology reference for goodput, outcomes, arrival-schedule lag, measurement populations and uncertainty. The local protocol deliberately retains offered demand that an imported summary may exclude; no benchmark tool was installed or run."
+    },
+    {
+      "id": "vllm_bench",
+      "repository": "vllm-project/vllm",
+      "commit_sha": "9ad002988359b6f7a703d9000f9a5f3a331e1a39",
+      "path": "docs/benchmarking/cli.md",
+      "git_blob_sha": "ff06351a092c771d3fb3ff9ecef291081729885b",
+      "url": "https://github.com/vllm-project/vllm/blob/9ad002988359b6f7a703d9000f9a5f3a331e1a39/docs/benchmarking/cli.md",
+      "checked_on": "2026-11-09",
+      "type": "github_file",
+      "observation": "Methodology reference for client timing, cache controls and the distinction between streamed events and token-normalized averages. Local completion additionally requires validated termination; no vLLM backend or benchmark was installed."
+    },
+    {
+      "id": "aiperf_metrics",
+      "repository": "ai-dynamo/aiperf",
+      "commit_sha": "ab610add4e8876fca223197596c728e17365f381",
+      "path": "docs/metrics-reference.md",
+      "git_blob_sha": "ce96aaeef4e6c42a946f97eff28856cc07576c45",
+      "url": "https://github.com/ai-dynamo/aiperf/blob/ab610add4e8876fca223197596c728e17365f381/docs/metrics-reference.md",
+      "checked_on": "2026-11-09",
+      "type": "github_file",
+      "observation": "Methodology reference for content timing, HTTP-byte timing and inter-chunk gaps. The local protocol records terminal validation separately and leaves unknown token counts unavailable; the tool was not installed or run."
+    },
+    {
+      "id": "llamacpp_bench",
+      "repository": "ggml-org/llama.cpp",
+      "commit_sha": "a4d4f2fd4ec85ec6a0a9ece4870416c1b6cc24f5",
+      "path": "tools/llama-bench/README.md",
+      "git_blob_sha": "3760072121150eab2c33e79a1a7be8b0fec71b57",
+      "url": "https://github.com/ggml-org/llama.cpp/blob/a4d4f2fd4ec85ec6a0a9ece4870416c1b6cc24f5/tools/llama-bench/README.md",
+      "checked_on": "2026-11-09",
+      "type": "github_file",
+      "observation": "Engine microbenchmark methodology separates prompt processing and text generation with repeated trials and serving parameters. Its timing excludes tokenization and sampling; inspected methodology does not constitute a local model benchmark."
+    },
+    {
+      "id": "litellm_bench",
+      "repository": "BerriAI/litellm-docs",
+      "commit_sha": "704f99b77f251df668a52c4487bb7d870130028a",
+      "path": "docs/benchmarks.md",
+      "git_blob_sha": "a4ef4873fb9c9c6c9ff08086c1163d09a46b277a",
+      "url": "https://github.com/BerriAI/litellm-docs/blob/704f99b77f251df668a52c4487bb7d870130028a/docs/benchmarks.md",
+      "checked_on": "2026-11-09",
+      "type": "github_file",
+      "observation": "Official benchmark documentation describes mock-model proxy tests and deployment conditions. Used to define isolated synthetic overhead measurements; published throughput and latency are not desktop-native targets or reproduced results."
     }
   ],
   "unresolved_retrievals": [

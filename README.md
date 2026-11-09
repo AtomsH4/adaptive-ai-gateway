@@ -73,6 +73,7 @@ Current evidence covers adapter replacement, telemetry failures, scoped release 
 9. [Implementation plan](docs/plans/2026-11-08-implementation-plan.md)
 10. [HTTP contract](docs/contracts/http-api.md)
 11. [Architecture verification snapshot](docs/architecture/verification.md)
+12. [Evaluation protocol](docs/evaluation/README.md), [metrics](docs/evaluation/metrics.md), [scenarios](docs/evaluation/scenarios.md), and [report template](docs/evaluation/report-template.md)
 
 Research was checked on 2026-11-08; the architecture and runtime records were updated on 2026-11-09 (Asia/Shanghai). Individual sources retain their check dates. Measurements, proposed budgets, and future requirements are labeled separately.
 
